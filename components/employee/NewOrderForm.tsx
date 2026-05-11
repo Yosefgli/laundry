@@ -1,10 +1,10 @@
 "use client";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   customerDeviceChannelName,
@@ -12,6 +12,7 @@ import {
   SessionEvent,
   type SessionStartedPayload,
 } from "@/lib/realtime/events";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 const schema = z.object({
   weightKg: z.number({ invalid_type_error: "Enter a number" }).positive().max(999),
@@ -23,6 +24,7 @@ interface NewOrderFormProps {
   translations: Record<string, string>;
   workstationId?: string;
   employeeDeviceId: string;
+  customerDeviceId: string;
   onCreated: (orderId: string, sessionId: string) => void;
 }
 
@@ -30,9 +32,16 @@ export function NewOrderForm({
   translations: t,
   workstationId,
   employeeDeviceId,
+  customerDeviceId,
   onCreated,
 }: NewOrderFormProps) {
-  const supabase = createClient();
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
+  if (!supabaseRef.current) {
+    supabaseRef.current = createClient();
+  }
+  const supabase = supabaseRef.current;
+  const handoffChannelRef = useRef<RealtimeChannel | null>(null);
+  const handoffReadyRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,10 +51,46 @@ export function NewOrderForm({
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
+  useEffect(() => {
+    const channel = supabase.channel(customerDeviceChannelName(customerDeviceId), {
+      config: { broadcast: { self: false, ack: true } },
+    });
+
+    handoffChannelRef.current = channel;
+    handoffReadyRef.current = false;
+
+    channel.subscribe((status) => {
+      handoffReadyRef.current = status === "SUBSCRIBED";
+    });
+
+    return () => {
+      handoffReadyRef.current = false;
+      if (handoffChannelRef.current === channel) {
+        handoffChannelRef.current = null;
+      }
+      void supabase.removeChannel(channel);
+    };
+  }, [customerDeviceId, supabase]);
+
+  async function sendSessionStarted(channel: RealtimeChannel, payload: SessionStartedPayload) {
+    await channel.send({
+      type: "broadcast",
+      event: SessionEvent.SESSION_STARTED,
+      payload: makeEnvelope(SessionEvent.SESSION_STARTED, payload),
+    });
+  }
+
   async function publishSessionStarted(payload: SessionStartedPayload) {
     if (!payload.customerDeviceId) return;
 
-    const channel = supabase.channel(customerDeviceChannelName(payload.customerDeviceId));
+    if (handoffReadyRef.current && handoffChannelRef.current) {
+      await sendSessionStarted(handoffChannelRef.current, payload);
+      return;
+    }
+
+    const channel = supabase.channel(customerDeviceChannelName(payload.customerDeviceId), {
+      config: { broadcast: { self: false, ack: true } },
+    });
     let completed = false;
 
     await new Promise<void>((resolve) => {
@@ -59,11 +104,7 @@ export function NewOrderForm({
       channel.subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
           window.clearTimeout(timeout);
-          await channel.send({
-            type: "broadcast",
-            event: SessionEvent.SESSION_STARTED,
-            payload: makeEnvelope(SessionEvent.SESSION_STARTED, payload),
-          });
+          await sendSessionStarted(channel, payload);
           done();
         }
 
@@ -113,7 +154,7 @@ export function NewOrderForm({
       void publishSessionStarted({
         sessionId: sessionJson.data.id,
         orderId,
-        customerDeviceId: sessionJson.data.customer_device_id ?? undefined,
+        customerDeviceId: sessionJson.data.customer_device_id ?? customerDeviceId,
         workflowStep: sessionJson.data.workflow_step ?? "customer_info",
       });
 

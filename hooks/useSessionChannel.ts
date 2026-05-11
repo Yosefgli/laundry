@@ -22,18 +22,29 @@ export function useSessionChannel({
   onEvent,
   onStateChange,
 }: UseSessionChannelOptions) {
-  const supabase = createClient();
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
+  if (!supabaseRef.current) {
+    supabaseRef.current = createClient();
+  }
+  const supabase = supabaseRef.current;
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const onEventRef = useRef(onEvent);
+  const onStateChangeRef = useRef(onStateChange);
   const retriesRef = useRef(0);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
 
+  useEffect(() => {
+    onEventRef.current = onEvent;
+    onStateChangeRef.current = onStateChange;
+  }, [onEvent, onStateChange]);
+
   const updateState = useCallback(
     (s: ConnectionState) => {
       setConnectionState(s);
-      onStateChange?.(s);
+      onStateChangeRef.current?.(s);
     },
-    [onStateChange]
+    []
   );
 
   const stopPolling = useCallback(() => {
@@ -44,15 +55,30 @@ export function useSessionChannel({
   }, []);
 
   const subscribe = useCallback(() => {
+    if (channelRef.current) {
+      const previousChannel = channelRef.current;
+      channelRef.current = null;
+      void supabase.removeChannel(previousChannel);
+    }
+
     const ch = supabase.channel(channelName(sessionId), {
       config: { broadcast: { self: false } },
     });
 
     ch.on("broadcast", { event: "*" }, ({ event, payload }) => {
-      onEvent?.({ type: event as SessionEvent, payload, timestamp: new Date().toISOString() });
+      const envelope = payload as Partial<BroadcastEnvelope>;
+      onEventRef.current?.(
+        envelope.type === event
+          ? (envelope as BroadcastEnvelope)
+          : { type: event as SessionEvent, payload, timestamp: new Date().toISOString() }
+      );
     });
 
+    channelRef.current = ch;
+
     ch.subscribe((status) => {
+      if (channelRef.current !== ch) return;
+
       if (status === "SUBSCRIBED") {
         retriesRef.current = 0;
         stopPolling();
@@ -70,7 +96,7 @@ export function useSessionChannel({
         updateState("degraded");
         if (!pollIntervalRef.current) {
           pollIntervalRef.current = setInterval(() => {
-            onEvent?.({
+            onEventRef.current?.({
               type: SessionEvent.ORDER_STATUS_CHANGED,
               payload: { _poll: true },
               timestamp: new Date().toISOString(),
@@ -80,16 +106,16 @@ export function useSessionChannel({
       }
     });
 
-    channelRef.current = ch;
-  }, [sessionId, onEvent, stopPolling, supabase, updateState]);
+  }, [sessionId, stopPolling, supabase, updateState]);
 
   useEffect(() => {
     subscribe();
     return () => {
       stopPolling();
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        const channel = channelRef.current;
         channelRef.current = null;
+        void supabase.removeChannel(channel);
       }
     };
   }, [subscribe, stopPolling, supabase]);

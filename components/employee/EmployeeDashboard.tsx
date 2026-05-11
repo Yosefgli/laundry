@@ -223,6 +223,7 @@ export function EmployeeDashboard({
               translations={t}
               workstationId={workstationId}
               employeeDeviceId={deviceId}
+              customerDeviceId={`customer-${employee.id}`}
               onCreated={handleOrderCreated}
             />
           </div>

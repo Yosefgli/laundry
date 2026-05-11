@@ -6,3 +6,4 @@
 - 2026-05-11: fix: resolve Vercel TypeScript build failure — cast createServerClient/createBrowserClient to SupabaseClient<Database> (bypasses @supabase/ssr v0.5.2 / supabase-js v2.105 3→5 param incompatibility), add Partial<> to all Insert types, add forward+reverse Relationships to all tables, fix Record<string,unknown> update payload in orders status route.
 - 2026-05-11: Customer screen now defaults to prices and returns there after confirmation.
 - 2026-05-11: Add realtime customer handoff and required phone country prefix.
+- 2026-05-11: Stabilize realtime handoff and hide employee degraded-mode banner.

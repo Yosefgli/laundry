@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency, isRTL, type Locale, type TranslationMap } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
@@ -41,27 +41,52 @@ export function CustomerPriceDisplay({
 }: CustomerPriceDisplayProps) {
   const router = useRouter();
   const dir = isRTL(locale) ? "rtl" : "ltr";
+  const openedSessionRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
 
     function openSession(sessionId: string, deviceId = customerDeviceId) {
+      if (cancelled || openedSessionRef.current === sessionId) return;
+      openedSessionRef.current = sessionId;
       router.replace(`/customer/${sessionId}?device=${encodeURIComponent(deviceId)}`);
     }
 
     const channel = supabase
       .channel(customerDeviceChannelName(customerDeviceId), {
-        config: { broadcast: { self: false } },
+        config: { broadcast: { self: false, ack: true } },
       })
       .on("broadcast", { event: SessionEvent.SESSION_STARTED }, ({ payload }) => {
-        const envelope = payload as BroadcastEnvelope<SessionStartedPayload>;
-        const session = envelope.payload;
+        const envelope = payload as Partial<BroadcastEnvelope<SessionStartedPayload>>;
+        const session = envelope.payload ?? (payload as SessionStartedPayload);
         if (!session?.sessionId) return;
         if (session.customerDeviceId && session.customerDeviceId !== customerDeviceId) return;
         openSession(session.sessionId, session.customerDeviceId);
       })
-      .subscribe();
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "sessions",
+          filter: `customer_device_id=eq.${customerDeviceId}`,
+        },
+        (payload) => {
+          const session = payload.new as {
+            id?: string;
+            status?: string;
+            customer_device_id?: string | null;
+          };
+          if (session.status !== "active" || !session.id) return;
+          openSession(session.id, session.customer_device_id ?? customerDeviceId);
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          void checkForSession();
+        }
+      });
 
     async function checkForSession() {
       try {
@@ -81,7 +106,7 @@ export function CustomerPriceDisplay({
     }
 
     void checkForSession();
-    const interval = window.setInterval(checkForSession, 10000);
+    const interval = window.setInterval(checkForSession, 1000);
 
     return () => {
       cancelled = true;
