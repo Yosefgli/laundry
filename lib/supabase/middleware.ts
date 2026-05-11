@@ -1,9 +1,18 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type SetAllCookies } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/lib/db/database.types";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+  const setAll: SetAllCookies = (toSet) => {
+    toSet.forEach(({ name, value }) =>
+      request.cookies.set(name, value)
+    );
+    supabaseResponse = NextResponse.next({ request });
+    toSet.forEach(({ name, value, options }) =>
+      supabaseResponse.cookies.set(name, value, options)
+    );
+  };
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,15 +20,7 @@ export async function updateSession(request: NextRequest) {
     {
       cookies: {
         getAll: () => request.cookies.getAll(),
-        setAll: (toSet) => {
-          toSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({ request });
-          toSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
+        setAll,
       },
     }
   );

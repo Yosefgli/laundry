@@ -1,10 +1,19 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type SetAllCookies } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import type { Database } from "@/lib/db/database.types";
 
 export async function createClient() {
   const cookieStore = await cookies();
+  const setAll: SetAllCookies = (toSet) => {
+    try {
+      toSet.forEach(({ name, value, options }) =>
+        cookieStore.set(name, value, options)
+      );
+    } catch {
+      // Server component context - cookie mutations are ignored
+    }
+  };
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,15 +21,7 @@ export async function createClient() {
     {
       cookies: {
         getAll: () => cookieStore.getAll(),
-        setAll: (toSet) => {
-          try {
-            toSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Server component context — cookie mutations are ignored
-          }
-        },
+        setAll,
       },
     }
   ) as unknown as SupabaseClient<Database>;

@@ -12,8 +12,20 @@ import type { Database } from "@/lib/db/database.types";
 import { createClient } from "@/lib/supabase/client";
 
 type Employee = { id: string; full_name: string; role: string };
+type OrderItemService = Database["public"]["Tables"]["order_item_services"]["Row"] & {
+  service_type?: { id: string; code: string } | null;
+};
+type OrderItemWithServices = Database["public"]["Tables"]["order_items"]["Row"] & {
+  order_item_services?: OrderItemService[];
+};
 type Order = Database["public"]["Tables"]["orders"]["Row"] & {
-  order_items?: unknown[];
+  order_items?: OrderItemWithServices[];
+};
+type OrderItemQueryRow = Database["public"]["Tables"]["order_items"]["Row"] & {
+  order_item_services?: OrderItemService | OrderItemService[] | null;
+};
+type OrderQueryRow = Database["public"]["Tables"]["orders"]["Row"] & {
+  order_items?: OrderItemQueryRow | OrderItemQueryRow[] | null;
 };
 type RecentOrder = {
   id: string;
@@ -35,6 +47,21 @@ interface EmployeeDashboardProps {
 }
 
 type View = "dashboard" | "new_order" | "active_session" | "scan";
+
+function toArray<T>(value: T | T[] | null | undefined): T[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function normalizeOrder(order: OrderQueryRow): Order {
+  return {
+    ...order,
+    order_items: toArray(order.order_items).map((item) => ({
+      ...item,
+      order_item_services: toArray(item.order_item_services),
+    })),
+  };
+}
 
 export function EmployeeDashboard({
   employee,
@@ -70,7 +97,7 @@ export function EmployeeDashboard({
       .select(`*, order_items(*, order_item_services(*, service_type:service_types(id, code)))`)
       .eq("id", orderId)
       .single();
-    if (data) setActiveOrder(data as Order);
+    if (data) setActiveOrder(normalizeOrder(data));
   }
 
   const handleOrderRefresh = useCallback(() => {

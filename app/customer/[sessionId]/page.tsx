@@ -1,10 +1,20 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { CustomerKiosk } from "@/components/customer/CustomerKiosk";
 import { notFound } from "next/navigation";
+import type { Database } from "@/lib/db/database.types";
 
 type RouteProps = {
   params: Promise<{ sessionId: string }>;
   searchParams: Promise<{ device?: string; locale?: string }>;
+};
+
+type ServiceTypeRow = Database["public"]["Tables"]["service_types"]["Row"];
+type PricingRuleRow = Database["public"]["Tables"]["pricing_rules"]["Row"];
+type ServiceTypeWithPricingRules = ServiceTypeRow & {
+  pricing_rules: PricingRuleRow[];
+};
+type ServiceTypesQueryRow = ServiceTypeRow & {
+  pricing_rules: PricingRuleRow | PricingRuleRow[] | null;
 };
 
 async function getSessionData(sessionId: string) {
@@ -24,14 +34,22 @@ async function getSessionData(sessionId: string) {
   return data;
 }
 
-async function getServiceTypes() {
+async function getServiceTypes(): Promise<ServiceTypeWithPricingRules[]> {
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("service_types")
-    .select(`*, pricing_rules(id, price_per_kg, flat_fee, minimum_charge, tax_rate)`)
+    .select(`*, pricing_rules(*)`)
     .eq("is_active", true)
     .order("display_order");
-  return data ?? [];
+
+  return ((data ?? []) as ServiceTypesQueryRow[]).map((service) => ({
+    ...service,
+    pricing_rules: Array.isArray(service.pricing_rules)
+      ? service.pricing_rules
+      : service.pricing_rules
+        ? [service.pricing_rules]
+        : [],
+  }));
 }
 
 async function getTranslations(locale: string) {
