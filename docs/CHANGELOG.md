@@ -1,1 +1,2 @@
 - 2026-05-11: Full MVP scaffold — Next.js App Router, Supabase schema (4 migrations), RLS, realtime session channels, employee dashboard, customer kiosk, barcode/receipt printing, admin panel (orders, pricing, workstations, settings, translations, audit log).
+- fix: removed @types/bwip-js (phantom package), added .gitignore to prevent env files from reaching GitHub
