@@ -28,6 +28,58 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
   }
 }
 
+export async function PATCH(request: NextRequest, ctx: RouteContext) {
+  try {
+    const employee = await requireEmployee();
+    const { id } = await ctx.params;
+    const supabase = createServiceClient();
+
+    const body = await request.json().catch(() => ({}));
+    if (body.action !== "complete") {
+      return NextResponse.json({ data: null, error: "Unknown action" }, { status: 400 });
+    }
+
+    const { data: session } = await supabase
+      .from("sessions")
+      .select("id, status")
+      .eq("id", id)
+      .single();
+
+    if (!session) {
+      return NextResponse.json({ data: null, error: "Session not found" }, { status: 404 });
+    }
+    if (session.status === "completed") {
+      return NextResponse.json({ data: session, error: null });
+    }
+    if (session.status !== "active") {
+      return NextResponse.json({ data: null, error: "Session not active" }, { status: 409 });
+    }
+
+    const now = new Date().toISOString();
+    const { data: updatedSession, error } = await supabase
+      .from("sessions")
+      .update({ status: "completed", completed_at: now, workflow_step: "completed" })
+      .eq("id", id)
+      .select("id, status, completed_at")
+      .single();
+
+    if (error || !updatedSession) {
+      return NextResponse.json({ data: null, error: error?.message }, { status: 500 });
+    }
+
+    await logAudit(supabase, {
+      employeeId: employee.id,
+      action: "session_completed",
+      entityType: "session",
+      entityId: id,
+    });
+
+    return NextResponse.json({ data: updatedSession, error: null });
+  } catch {
+    return NextResponse.json({ data: null, error: "Unauthorized" }, { status: 401 });
+  }
+}
+
 export async function DELETE(request: NextRequest, ctx: RouteContext) {
   try {
     const employee = await requireEmployee();

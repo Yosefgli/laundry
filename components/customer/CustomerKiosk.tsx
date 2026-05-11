@@ -1,5 +1,6 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { CustomerInfoForm } from "@/components/customer/CustomerInfoForm";
 import { ServiceSelector } from "@/components/customer/ServiceSelector";
 import { DegradedModeBanner, ReconnectingBanner } from "@/components/ui/DegradedModeBanner";
@@ -21,6 +22,7 @@ type Order = {
 };
 
 type Step = "info" | "services" | "confirmed" | "cancelled";
+const CONFIRMATION_RETURN_DELAY_MS = 5000;
 
 interface CustomerKioskProps {
   sessionId: string;
@@ -40,6 +42,7 @@ export function CustomerKiosk({
   const [step, setStep] = useState<Step>("info");
   const [total, setTotal] = useState(0);
   const [connState, setConnState] = useState<"connecting" | "connected" | "reconnecting" | "degraded" | "error">("connecting");
+  const router = useRouter();
   const dir = isRTL(locale) ? "rtl" : "ltr";
 
   const handleEvent = useCallback(
@@ -57,6 +60,16 @@ export function CustomerKiosk({
     onStateChange: setConnState,
   });
 
+  useEffect(() => {
+    if (step !== "confirmed") return;
+
+    const timeout = window.setTimeout(() => {
+      router.replace("/customer");
+    }, CONFIRMATION_RETURN_DELAY_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [router, step]);
+
   function handleInfoSubmitted() {
     publish(SessionEvent.CUSTOMER_INFO_SUBMITTED, { sessionId });
     setStep("services");
@@ -65,6 +78,15 @@ export function CustomerKiosk({
   function handleOrderConfirmed(finalTotal: number) {
     setTotal(finalTotal);
     publish(SessionEvent.ORDER_CONFIRMED, { orderId: order.id, total: finalTotal });
+    void fetch(`/api/sessions/${sessionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "complete" }),
+    })
+      .then(() => {
+        publish(SessionEvent.SESSION_COMPLETED, { sessionId, orderId: order.id });
+      })
+      .catch(() => undefined);
     setStep("confirmed");
   }
 
