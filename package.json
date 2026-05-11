@@ -32,7 +32,6 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@types/bwip-js": "^3.4.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
