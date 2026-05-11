@@ -1,0 +1,173 @@
+"use client";
+import { useState, useCallback } from "react";
+import { CustomerInfoForm } from "@/components/customer/CustomerInfoForm";
+import { ServiceSelector } from "@/components/customer/ServiceSelector";
+import { DegradedModeBanner, ReconnectingBanner } from "@/components/ui/DegradedModeBanner";
+import { useSessionChannel } from "@/hooks/useSessionChannel";
+import { SessionEvent } from "@/lib/realtime/events";
+import { isRTL } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n";
+import type { Database } from "@/lib/db/database.types";
+import { formatCurrency } from "@/lib/i18n";
+
+type ServiceType = Database["public"]["Tables"]["service_types"]["Row"] & {
+  pricing_rules?: Database["public"]["Tables"]["pricing_rules"]["Row"][];
+};
+
+type Order = {
+  id: string;
+  order_number: string;
+  status: string;
+  total_weight_kg: number;
+  order_items?: Array<{ id: string; weight_kg: number; notes?: string | null }>;
+};
+
+type Step = "info" | "services" | "confirmed" | "cancelled";
+
+interface CustomerKioskProps {
+  sessionId: string;
+  order: Order;
+  serviceTypes: ServiceType[];
+  translations: Record<string, string>;
+  locale: Locale;
+  customerDeviceId: string;
+}
+
+export function CustomerKiosk({
+  sessionId,
+  order,
+  serviceTypes,
+  translations: t,
+  locale,
+  customerDeviceId,
+}: CustomerKioskProps) {
+  const [step, setStep] = useState<Step>("info");
+  const [total, setTotal] = useState(0);
+  const [connState, setConnState] = useState<"connecting" | "connected" | "reconnecting" | "degraded" | "error">("connecting");
+  const dir = isRTL(locale) ? "rtl" : "ltr";
+
+  const handleEvent = useCallback(
+    (envelope: { type: SessionEvent }) => {
+      if (envelope.type === SessionEvent.SESSION_CANCELLED) {
+        setStep("cancelled");
+      }
+    },
+    []
+  );
+
+  const { publish } = useSessionChannel({
+    sessionId,
+    onEvent: handleEvent,
+    onStateChange: setConnState,
+  });
+
+  function handleInfoSubmitted() {
+    publish(SessionEvent.CUSTOMER_INFO_SUBMITTED, { sessionId });
+    setStep("services");
+  }
+
+  function handleOrderConfirmed(finalTotal: number) {
+    setTotal(finalTotal);
+    publish(SessionEvent.ORDER_CONFIRMED, { orderId: order.id, total: finalTotal });
+    setStep("confirmed");
+  }
+
+  const items = order.order_items ?? [];
+
+  return (
+    <div className="min-h-screen bg-gray-50" dir={dir}>
+      {connState === "reconnecting" && <ReconnectingBanner message={t["common.reconnecting"]} />}
+      {connState === "degraded"     && <DegradedModeBanner message={t["common.degraded_mode"]} />}
+
+      {/* Kiosk header */}
+      <header className="bg-brand-600 text-white px-6 py-4">
+        <div className="max-w-lg mx-auto flex items-center justify-between">
+          <h1 className="font-bold text-lg">{t["customer.welcome"]}</h1>
+          <div className="flex gap-2">
+            {(["he", "en", "my"] as Locale[]).map((loc) => (
+              <button
+                key={loc}
+                className="text-xs px-2 py-1 rounded border border-white/30 hover:bg-white/20"
+                onClick={() => {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set("locale", loc);
+                  url.searchParams.set("device", customerDeviceId);
+                  window.location.href = url.toString();
+                }}
+              >
+                {loc.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-lg mx-auto p-6 space-y-6">
+        {/* Progress indicator */}
+        {step !== "cancelled" && step !== "confirmed" && (
+          <div className="flex gap-1">
+            {(["info", "services"] as const).map((s, idx) => (
+              <div
+                key={s}
+                className={`flex-1 h-1.5 rounded-full ${
+                  step === s || (s === "info" && step === "services")
+                    ? "bg-brand-600"
+                    : "bg-gray-200"
+                }`}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Step: customer info */}
+        {step === "info" && (
+          <div className="bg-white rounded-xl border p-6 space-y-4">
+            <h2 className="text-xl font-bold">{t["customer.your_name"]}</h2>
+            <CustomerInfoForm
+              orderId={order.id}
+              translations={t}
+              onSubmitted={handleInfoSubmitted}
+            />
+          </div>
+        )}
+
+        {/* Step: service selection */}
+        {step === "services" && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold">{t["customer.select_services"]}</h2>
+            <ServiceSelector
+              orderId={order.id}
+              serviceTypes={serviceTypes}
+              initialItems={items.map((i) => ({ id: i.id, weightKg: Number(i.weight_kg) }))}
+              translations={t}
+              locale={locale}
+              onConfirmed={handleOrderConfirmed}
+            />
+          </div>
+        )}
+
+        {/* Step: confirmed */}
+        {step === "confirmed" && (
+          <div className="bg-white rounded-xl border p-8 text-center space-y-4">
+            <div className="text-5xl">✓</div>
+            <h2 className="text-2xl font-bold text-green-600">{t["customer.thank_you"]}</h2>
+            <p className="text-gray-600">{t["customer.order_confirmed"]}</p>
+            <div className="text-3xl font-black text-brand-700">
+              {order.order_number}
+            </div>
+            <div className="text-xl font-bold">{t["customer.total"]}: {formatCurrency(total, locale)}</div>
+          </div>
+        )}
+
+        {/* Step: cancelled */}
+        {step === "cancelled" && (
+          <div className="bg-white rounded-xl border p-8 text-center space-y-4">
+            <div className="text-5xl">✗</div>
+            <h2 className="text-2xl font-bold text-red-600">{t["status.cancelled"]}</h2>
+            <p className="text-gray-500 text-sm">Please see the employee for assistance.</p>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

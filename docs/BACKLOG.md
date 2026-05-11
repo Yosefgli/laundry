@@ -1,0 +1,12 @@
+- Add direct IP/HTTP network print trigger for Epson thermal printers (bypass browser print dialog)
+- Incident management UI in admin panel
+- Employee-facing order history search / filter by date range
+- Push notifications to employee tablet when customer confirms order
+- Multi-bag weight entry by employee (split weight across bags)
+- Refund workflow with partial refund support
+- PDF export of receipt via react-pdf
+- Offline-first PWA mode with service worker for scanner page
+- Customer SMS notification when order is ready
+- Barcode scanner dedicated page with fullscreen kiosk lock
+- Workstation PIN protection for employee screen
+- Time-based pricing (rush hours surcharge via system_settings)

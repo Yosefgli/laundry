@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    font-family: Inter, system-ui, sans-serif;
+  }
+
+  html[dir="rtl"] {
+    direction: rtl;
+  }
+}
+
+@media print {
+  body > *:not(.print-layout):not(.bag-label-layout) {
+    display: none !important;
+  }
+}

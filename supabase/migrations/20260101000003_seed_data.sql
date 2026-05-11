@@ -1,0 +1,248 @@
+-- Rollback: DELETE FROM translations; DELETE FROM system_settings; DELETE FROM service_types; etc.
+
+-- ─── System Settings ──────────────────────────────────────────────────────────
+INSERT INTO system_settings (key, value, description) VALUES
+  ('shop_name',        'Laundry Pro',  'Business name shown on receipts'),
+  ('shop_address',     '',             'Business address shown on receipts'),
+  ('shop_phone',       '',             'Business phone shown on receipts'),
+  ('tax_id',           '',             'Tax ID shown on receipts'),
+  ('default_locale',   'he',           'Default UI language: en, he, my'),
+  ('receipt_width_mm', '80',           'Thermal receipt paper width in mm'),
+  ('session_ttl_min',  '60',           'Customer session timeout in minutes'),
+  ('pairing_code_ttl', '300',          'Pairing code TTL in seconds');
+
+-- ─── Service Types ────────────────────────────────────────────────────────────
+INSERT INTO service_types (code, display_order, is_active) VALUES
+  ('regular',   1, true),
+  ('drying',    2, true),
+  ('ironing',   3, true),
+  ('folding',   4, true),
+  ('express',   5, true),
+  ('delicate',  6, true);
+
+-- ─── Pricing Rules (default prices — admin can update via UI) ─────────────────
+INSERT INTO pricing_rules (service_type_id, price_per_kg, flat_fee, minimum_charge, tax_rate)
+SELECT id, price_per_kg, flat_fee, minimum_charge, tax_rate
+FROM (VALUES
+  ('regular',  15.000, 0.00, 20.00, 0.17),
+  ('drying',    8.000, 0.00,  0.00, 0.17),
+  ('ironing',  12.000, 0.00, 15.00, 0.17),
+  ('folding',   5.000, 0.00,  0.00, 0.17),
+  ('express',  30.000, 0.00, 30.00, 0.17),
+  ('delicate', 20.000, 0.00, 20.00, 0.17)
+) AS defaults(code, price_per_kg, flat_fee, minimum_charge, tax_rate)
+JOIN service_types st ON st.code = defaults.code;
+
+-- ─── Default Workstation ──────────────────────────────────────────────────────
+INSERT INTO workstations (name, printer_ip, printer_port, is_active)
+VALUES ('Station A', NULL, 9100, true);
+
+-- ─── Translations — English ───────────────────────────────────────────────────
+INSERT INTO translations (key, locale, value) VALUES
+  -- Navigation
+  ('nav.employee',              'en', 'Employee'),
+  ('nav.admin',                 'en', 'Admin'),
+  ('nav.logout',                'en', 'Log out'),
+
+  -- Common
+  ('common.confirm',            'en', 'Confirm'),
+  ('common.cancel',             'en', 'Cancel'),
+  ('common.save',               'en', 'Save'),
+  ('common.edit',               'en', 'Edit'),
+  ('common.delete',             'en', 'Delete'),
+  ('common.loading',            'en', 'Loading…'),
+  ('common.error',              'en', 'Something went wrong'),
+  ('common.reconnecting',       'en', 'Reconnecting…'),
+  ('common.degraded_mode',      'en', 'Real-time disconnected — polling every 3s'),
+
+  -- Order statuses
+  ('status.draft',              'en', 'Draft'),
+  ('status.weighed',            'en', 'Weighed'),
+  ('status.confirmed',          'en', 'Confirmed'),
+  ('status.paid',               'en', 'Paid'),
+  ('status.washing',            'en', 'Washing'),
+  ('status.drying',             'en', 'Drying'),
+  ('status.ironing',            'en', 'Ironing'),
+  ('status.ready',              'en', 'Ready'),
+  ('status.delivered',          'en', 'Delivered'),
+  ('status.cancelled',          'en', 'Cancelled'),
+  ('status.void',               'en', 'Void'),
+
+  -- Payment statuses
+  ('payment.pending',           'en', 'Payment Pending'),
+  ('payment.paid',              'en', 'Paid'),
+  ('payment.refunded',          'en', 'Refunded'),
+
+  -- Services
+  ('service.regular',           'en', 'Regular Wash'),
+  ('service.drying',            'en', 'Drying'),
+  ('service.ironing',           'en', 'Ironing'),
+  ('service.folding',           'en', 'Folding'),
+  ('service.express',           'en', 'Express (24h)'),
+  ('service.delicate',          'en', 'Delicate Laundry'),
+
+  -- Employee workflow
+  ('employee.new_order',        'en', 'New Order'),
+  ('employee.weight_kg',        'en', 'Weight (kg)'),
+  ('employee.transfer_customer','en', 'Transfer to Customer'),
+  ('employee.mark_paid',        'en', 'Mark as Paid'),
+  ('employee.advance_status',   'en', 'Advance Status'),
+  ('employee.scan_barcode',     'en', 'Scan Barcode'),
+  ('employee.cancel_session',   'en', 'Cancel Session'),
+  ('employee.confirm_cancel',   'en', 'Are you sure you want to cancel this session?'),
+
+  -- Customer workflow
+  ('customer.welcome',          'en', 'Welcome'),
+  ('customer.your_name',        'en', 'Your Name'),
+  ('customer.phone',            'en', 'Phone Number'),
+  ('customer.notes',            'en', 'Notes (optional)'),
+  ('customer.select_services',  'en', 'Select Services'),
+  ('customer.add_bag',          'en', 'Add Another Bag'),
+  ('customer.order_summary',    'en', 'Order Summary'),
+  ('customer.confirm_order',    'en', 'Confirm Order'),
+  ('customer.thank_you',        'en', 'Thank you!'),
+  ('customer.order_confirmed',  'en', 'Your order has been confirmed.'),
+  ('customer.total',            'en', 'Total'),
+  ('customer.bag',              'en', 'Bag'),
+
+  -- Printing
+  ('print.receipt_title',       'en', 'Laundry Receipt'),
+  ('print.order_number',        'en', 'Order #'),
+  ('print.weight',              'en', 'Weight'),
+  ('print.services',            'en', 'Services'),
+  ('print.subtotal',            'en', 'Subtotal'),
+  ('print.tax',                 'en', 'Tax'),
+  ('print.total',               'en', 'Total'),
+  ('print.payment_status',      'en', 'Payment Status'),
+  ('print.print_receipt',       'en', 'Print Receipt'),
+  ('print.print_label',         'en', 'Print Bag Label');
+
+-- ─── Translations — Hebrew ────────────────────────────────────────────────────
+INSERT INTO translations (key, locale, value) VALUES
+  ('nav.employee',              'he', 'עובד'),
+  ('nav.admin',                 'he', 'מנהל'),
+  ('nav.logout',                'he', 'התנתק'),
+  ('common.confirm',            'he', 'אשר'),
+  ('common.cancel',             'he', 'ביטול'),
+  ('common.save',               'he', 'שמור'),
+  ('common.edit',               'he', 'ערוך'),
+  ('common.delete',             'he', 'מחק'),
+  ('common.loading',            'he', 'טוען…'),
+  ('common.error',              'he', 'משהו השתבש'),
+  ('common.reconnecting',       'he', 'מתחבר מחדש…'),
+  ('common.degraded_mode',      'he', 'חיבור בזמן אמת נותק — בדיקה כל 3 שניות'),
+  ('status.draft',              'he', 'טיוטה'),
+  ('status.weighed',            'he', 'נשקל'),
+  ('status.confirmed',          'he', 'מאושר'),
+  ('status.paid',               'he', 'שולם'),
+  ('status.washing',            'he', 'בכביסה'),
+  ('status.drying',             'he', 'בייבוש'),
+  ('status.ironing',            'he', 'בגיהוץ'),
+  ('status.ready',              'he', 'מוכן'),
+  ('status.delivered',          'he', 'נמסר'),
+  ('status.cancelled',          'he', 'בוטל'),
+  ('status.void',               'he', 'מבוטל'),
+  ('payment.pending',           'he', 'ממתין לתשלום'),
+  ('payment.paid',              'he', 'שולם'),
+  ('payment.refunded',          'he', 'הוחזר'),
+  ('service.regular',           'he', 'כביסה רגילה'),
+  ('service.drying',            'he', 'ייבוש'),
+  ('service.ironing',           'he', 'גיהוץ'),
+  ('service.folding',           'he', 'קיפול'),
+  ('service.express',           'he', 'אקספרס (24 שעות)'),
+  ('service.delicate',          'he', 'עדין'),
+  ('employee.new_order',        'he', 'הזמנה חדשה'),
+  ('employee.weight_kg',        'he', 'משקל (ק"ג)'),
+  ('employee.transfer_customer','he', 'העבר ללקוח'),
+  ('employee.mark_paid',        'he', 'סמן כשולם'),
+  ('employee.advance_status',   'he', 'קדם סטטוס'),
+  ('employee.scan_barcode',     'he', 'סרוק ברקוד'),
+  ('employee.cancel_session',   'he', 'בטל סשן'),
+  ('employee.confirm_cancel',   'he', 'האם אתה בטוח שברצונך לבטל את הסשן?'),
+  ('customer.welcome',          'he', 'ברוכים הבאים'),
+  ('customer.your_name',        'he', 'שמך המלא'),
+  ('customer.phone',            'he', 'מספר טלפון'),
+  ('customer.notes',            'he', 'הערות (אופציונלי)'),
+  ('customer.select_services',  'he', 'בחר שירותים'),
+  ('customer.add_bag',          'he', 'הוסף שקית נוספת'),
+  ('customer.order_summary',    'he', 'סיכום הזמנה'),
+  ('customer.confirm_order',    'he', 'אשר הזמנה'),
+  ('customer.thank_you',        'he', 'תודה!'),
+  ('customer.order_confirmed',  'he', 'ההזמנה שלך אושרה.'),
+  ('customer.total',            'he', 'סה"כ'),
+  ('customer.bag',              'he', 'שקית'),
+  ('print.receipt_title',       'he', 'קבלת כביסה'),
+  ('print.order_number',        'he', 'הזמנה מספר'),
+  ('print.weight',              'he', 'משקל'),
+  ('print.services',            'he', 'שירותים'),
+  ('print.subtotal',            'he', 'סכום ביניים'),
+  ('print.tax',                 'he', 'מע"מ'),
+  ('print.total',               'he', 'סה"כ'),
+  ('print.payment_status',      'he', 'סטטוס תשלום'),
+  ('print.print_receipt',       'he', 'הדפס קבלה'),
+  ('print.print_label',         'he', 'הדפס תווית');
+
+-- ─── Translations — Burmese ───────────────────────────────────────────────────
+INSERT INTO translations (key, locale, value) VALUES
+  ('nav.employee',              'my', 'ဝန်ထမ်း'),
+  ('nav.admin',                 'my', 'အုပ်ချုပ်ရေး'),
+  ('nav.logout',                'my', 'ထွက်မည်'),
+  ('common.confirm',            'my', 'အတည်ပြုမည်'),
+  ('common.cancel',             'my', 'ပယ်ဖျက်မည်'),
+  ('common.save',               'my', 'သိမ်းမည်'),
+  ('common.edit',               'my', 'ပြင်မည်'),
+  ('common.delete',             'my', 'ဖျက်မည်'),
+  ('common.loading',            'my', 'တင်နေသည်…'),
+  ('common.error',              'my', 'တစ်ခုခု မှားနေသည်'),
+  ('common.reconnecting',       'my', 'ပြန်ချိတ်ဆက်နေသည်…'),
+  ('common.degraded_mode',      'my', 'အချိန်နှင့်တပြေးညီ ချိတ်ဆက်မှု ပြတ်တောက် — ၃ စက္ကန့်တိုင်း စစ်ဆေးနေသည်'),
+  ('status.draft',              'my', 'မူကြမ်း'),
+  ('status.weighed',            'my', 'ချိန်ဆပြီး'),
+  ('status.confirmed',          'my', 'အတည်ပြုပြီး'),
+  ('status.paid',               'my', 'ပေးချေပြီး'),
+  ('status.washing',            'my', 'လျှော်နေသည်'),
+  ('status.drying',             'my', 'သွေ့ခြောက်နေသည်'),
+  ('status.ironing',            'my', 'မီးပူတိုက်နေသည်'),
+  ('status.ready',              'my', 'အဆင်သင့်'),
+  ('status.delivered',          'my', 'ပေးပို့ပြီး'),
+  ('status.cancelled',          'my', 'ပယ်ဖျက်ပြီး'),
+  ('status.void',               'my', 'မှတ်ပုံတင်ဖျက်ပြီး'),
+  ('payment.pending',           'my', 'ငွေပေးချေမှု ဆိုင်းငံ့'),
+  ('payment.paid',              'my', 'ပေးချေပြီး'),
+  ('payment.refunded',          'my', 'ပြန်အမ်းပြီး'),
+  ('service.regular',           'my', 'ပုံမှန် လျှော်ဖွပ်'),
+  ('service.drying',            'my', 'သွေ့ခြောက်ခြင်း'),
+  ('service.ironing',           'my', 'မီးပူတိုက်ခြင်း'),
+  ('service.folding',           'my', 'ချိုးနှောင်ခြင်း'),
+  ('service.express',           'my', 'အမြန် (၂၄ နာရီ)'),
+  ('service.delicate',          'my', 'ပျော့ပျောင်းသော အဝတ်'),
+  ('employee.new_order',        'my', 'အမှာတင်မည်'),
+  ('employee.weight_kg',        'my', 'အလေးချိန် (ကီလို)'),
+  ('employee.transfer_customer','my', 'ဖောက်သည်ထံ လွှဲပြောင်းမည်'),
+  ('employee.mark_paid',        'my', 'ပေးချေပြီးဟု မှတ်မည်'),
+  ('employee.advance_status',   'my', 'အဆင့် တိုးမည်'),
+  ('employee.scan_barcode',     'my', 'ဘားကုဒ် စကင်မည်'),
+  ('employee.cancel_session',   'my', 'စက်ရှင် ပယ်ဖျက်မည်'),
+  ('employee.confirm_cancel',   'my', 'ဤစက်ရှင်ကို ပယ်ဖျက်ရန် သေချာသလား?'),
+  ('customer.welcome',          'my', 'ကြိုဆိုပါသည်'),
+  ('customer.your_name',        'my', 'သင်၏ အမည်'),
+  ('customer.phone',            'my', 'ဖုန်းနံပါတ်'),
+  ('customer.notes',            'my', 'မှတ်ချက် (မဖြစ်မနေ မဟုတ်)'),
+  ('customer.select_services',  'my', 'ဝန်ဆောင်မှုများ ရွေးချယ်မည်'),
+  ('customer.add_bag',          'my', 'အိတ်တစ်ထုပ် ထပ်ထည့်မည်'),
+  ('customer.order_summary',    'my', 'အမှာ အကျဉ်းချုပ်'),
+  ('customer.confirm_order',    'my', 'အမှာ အတည်ပြုမည်'),
+  ('customer.thank_you',        'my', 'ကျေးဇူးတင်ပါသည်!'),
+  ('customer.order_confirmed',  'my', 'သင်၏ အမှာ အတည်ပြုပြီးပါပြီ။'),
+  ('customer.total',            'my', 'စုစုပေါင်း'),
+  ('customer.bag',              'my', 'အိတ်'),
+  ('print.receipt_title',       'my', 'အဝတ်လျှော်ဆိုင် ငွေလက်ခံ'),
+  ('print.order_number',        'my', 'အမှာ အမှတ်'),
+  ('print.weight',              'my', 'အလေးချိန်'),
+  ('print.services',            'my', 'ဝန်ဆောင်မှုများ'),
+  ('print.subtotal',            'my', 'ကြိုတင်စုစုပေါင်း'),
+  ('print.tax',                 'my', 'အခွန်'),
+  ('print.total',               'my', 'စုစုပေါင်း'),
+  ('print.payment_status',      'my', 'ငွေပေးချေမှု အခြေအနေ'),
+  ('print.print_receipt',       'my', 'ငွေလက်ခံ ထုတ်မည်'),
+  ('print.print_label',         'my', 'အိတ်တံဆိပ် ထုတ်မည်');
