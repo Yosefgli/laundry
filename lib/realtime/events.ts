@@ -24,6 +24,7 @@ export interface BroadcastEnvelope<T = unknown> {
 export interface SessionStartedPayload {
   sessionId: string;
   orderId: string;
+  customerDeviceId?: string;
   workflowStep: string;
 }
 
@@ -66,6 +67,10 @@ export interface PriceUpdatedPayload {
 
 export function channelName(sessionId: string): string {
   return `session:${sessionId}`;
+}
+
+export function customerDeviceChannelName(customerDeviceId: string): string {
+  return `customer:${customerDeviceId}`;
 }
 
 export function makeEnvelope<T>(

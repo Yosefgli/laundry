@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PHONE_COUNTRY_CODES, isSupportedPhoneCountryCode } from "@/lib/phoneCountryCodes";
 
 export const CreateOrderSchema = z.object({
   workstationId: z.string().uuid().optional(),
@@ -12,6 +13,7 @@ export const UpdateOrderStatusSchema = z.object({
     "cancelled", "void",
   ]),
   deliveredBy: z.string().uuid().optional(),
+  force: z.boolean().optional(),
 });
 
 export const UpdateOrderWeightSchema = z.object({
@@ -30,8 +32,21 @@ export const AddOrderItemSchema = z.object({
 
 export const CustomerInfoSchema = z.object({
   name: z.string().min(1).max(200).trim(),
-  phone: z.string().min(5).max(30).trim(),
+  phone: z.string().min(8).max(30).trim().regex(/^\+\d{7,15}$/),
   notes: z.string().max(500).optional(),
+});
+
+export const UpdateOrderDetailsSchema = z.object({
+  customerName: z.string().max(200).trim().optional().nullable(),
+  customerPhone: z
+    .string()
+    .trim()
+    .regex(/^\+\d{7,15}$/)
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+  customerNotes: z.string().max(500).optional().nullable(),
+  totalWeightKg: z.number().positive().max(999).optional(),
 });
 
 export type CreateOrderInput        = z.infer<typeof CreateOrderSchema>;
@@ -39,3 +54,5 @@ export type UpdateOrderStatusInput  = z.infer<typeof UpdateOrderStatusSchema>;
 export type UpdateOrderWeightInput  = z.infer<typeof UpdateOrderWeightSchema>;
 export type AddOrderItemInput       = z.infer<typeof AddOrderItemSchema>;
 export type CustomerInfoInput       = z.infer<typeof CustomerInfoSchema>;
+export type UpdateOrderDetailsInput = z.infer<typeof UpdateOrderDetailsSchema>;
+export { PHONE_COUNTRY_CODES, isSupportedPhoneCountryCode };

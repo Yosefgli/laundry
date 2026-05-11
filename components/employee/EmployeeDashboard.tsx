@@ -3,10 +3,10 @@ import { useState, useCallback } from "react";
 import { NewOrderForm } from "@/components/employee/NewOrderForm";
 import { SessionPanel } from "@/components/employee/SessionPanel";
 import { ScanInput } from "@/components/employee/ScanInput";
+import { OrderEditor } from "@/components/employee/OrderEditor";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/Button";
-import { PrintLayout } from "@/components/printing/PrintLayout";
-import { BagLabel } from "@/components/printing/BagLabel";
+import { CombinedOrderPrint } from "@/components/printing/CombinedOrderPrint";
 import { formatCurrency, type Locale } from "@/lib/i18n";
 import type { Database } from "@/lib/db/database.types";
 import { createClient } from "@/lib/supabase/client";
@@ -46,7 +46,7 @@ interface EmployeeDashboardProps {
   recentOrders: RecentOrder[];
 }
 
-type View = "dashboard" | "new_order" | "active_session" | "scan";
+type View = "dashboard" | "new_order" | "active_session" | "scan" | "order_detail";
 
 function toArray<T>(value: T | T[] | null | undefined): T[] {
   if (!value) return [];
@@ -89,18 +89,52 @@ export function EmployeeDashboard({
     setView("active_session");
   }
 
-  async function fetchOrder(orderId: string) {
+  async function fetchOrder(orderId: string): Promise<Order | null> {
     const { data } = await supabase
       .from("orders")
       .select(`*, order_items(*, order_item_services(*, service_type:service_types(id, code)))`)
       .eq("id", orderId)
       .single();
-    if (data) setActiveOrder(normalizeOrder(data));
+    if (data) {
+      const order = normalizeOrder(data);
+      setActiveOrder(order);
+      upsertRecentOrder(order);
+      return order;
+    }
+    return null;
   }
 
   const handleOrderRefresh = useCallback(() => {
     if (activeOrderId) fetchOrder(activeOrderId);
   }, [activeOrderId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function upsertRecentOrder(order: Order) {
+    setRecentOrders((prev) => {
+      if (["delivered", "void"].includes(order.status)) {
+        return prev.filter((item) => item.id !== order.id);
+      }
+
+      const summary: RecentOrder = {
+        id: order.id,
+        order_number: order.order_number,
+        status: order.status,
+        payment_status: order.payment_status,
+        customer_name: order.customer_name,
+        total_amount: Number(order.total_amount),
+        created_at: order.created_at,
+      };
+      const withoutCurrent = prev.filter((item) => item.id !== order.id);
+      return [summary, ...withoutCurrent].slice(0, 20);
+    });
+  }
+
+  async function openOrder(orderId: string) {
+    setActiveOrderId(orderId);
+    setActiveSessionId(null);
+    setScanError(null);
+    const order = await fetchOrder(orderId);
+    if (order) setView("order_detail");
+  }
 
   async function handleScan(barcode: string) {
     setScanError(null);
@@ -112,7 +146,7 @@ export function EmployeeDashboard({
     });
     const json = await res.json();
     if (json.data) {
-      setScanResult(json.data);
+      setScanResult(normalizeOrder(json.data));
     } else {
       setScanError(json.error ?? t["common.not_available"]);
     }
@@ -153,7 +187,7 @@ export function EmployeeDashboard({
 
       <main className="max-w-2xl mx-auto p-4 space-y-4">
         {/* Navigation tabs */}
-        {view !== "active_session" && (
+        {view !== "active_session" && view !== "order_detail" && (
           <div className="flex gap-2">
             <Button
               variant={view === "dashboard" ? "primary" : "secondary"}
@@ -197,15 +231,20 @@ export function EmployeeDashboard({
                         <div className="font-semibold text-sm">{order.order_number}</div>
                         <div className="text-xs text-gray-500">{order.customer_name ?? "—"}</div>
                       </div>
-                      <div className="flex gap-1">
-                        <OrderStatusBadge
-                          status={order.status as Parameters<typeof OrderStatusBadge>[0]["status"]}
-                          label={t[`status.${order.status}`] ?? order.status}
-                        />
-                        <PaymentStatusBadge
-                          status={order.payment_status as Parameters<typeof PaymentStatusBadge>[0]["status"]}
-                          label={t[`payment.${order.payment_status}`] ?? order.payment_status}
-                        />
+                      <div className="flex flex-wrap justify-end gap-1">
+                        <div className="flex gap-1">
+                          <OrderStatusBadge
+                            status={order.status as Parameters<typeof OrderStatusBadge>[0]["status"]}
+                            label={t[`status.${order.status}`] ?? order.status}
+                          />
+                          <PaymentStatusBadge
+                            status={order.payment_status as Parameters<typeof PaymentStatusBadge>[0]["status"]}
+                            label={t[`payment.${order.payment_status}`] ?? order.payment_status}
+                          />
+                        </div>
+                        <Button variant="secondary" size="sm" onClick={() => openOrder(order.id)}>
+                          {t["employee.open_order"]}
+                        </Button>
                       </div>
                     </li>
                   ))}
@@ -223,6 +262,7 @@ export function EmployeeDashboard({
               translations={t}
               workstationId={workstationId}
               employeeDeviceId={deviceId}
+              customerDeviceId={`customer-${employee.id}`}
               onCreated={handleOrderCreated}
             />
           </div>
@@ -242,29 +282,50 @@ export function EmployeeDashboard({
               onOrderRefresh={handleOrderRefresh}
             />
             {activeOrder && (
-              <div className="flex gap-2 mt-4">
-                <PrintLayout
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <CombinedOrderPrint
                   order={activeOrder}
                   locale={locale}
                   translations={t}
                   shopName="Laundry Pro"
-                  printLabel={t["print.print_receipt"]}
+                  printLabel={t["print.print_all"]}
+                  className="w-full sm:w-auto"
                 />
-                <BagLabel
-                  order={activeOrder}
-                  translations={t}
-                  locale={locale}
-                  printLabel={t["print.print_label"]}
-                />
+                <Button variant="secondary" size="lg" className="w-full sm:w-auto" onClick={() => setView("dashboard")}>
+                  {t["employee.back_dashboard"]}
+                </Button>
               </div>
             )}
           </div>
         )}
 
+        {/* Order Detail */}
+        {view === "order_detail" && activeOrder && (
+          <OrderEditor
+            order={activeOrder}
+            translations={t}
+            locale={locale}
+            onBack={() => setView("dashboard")}
+            onReload={() => activeOrderId ? fetchOrder(activeOrderId) : Promise.resolve(null)}
+            onOrderUpdated={(order) => {
+              setActiveOrder(order);
+              upsertRecentOrder(order);
+            }}
+          />
+        )}
+
         {/* Scan */}
         {view === "scan" && (
           <div className="space-y-4">
-            <ScanInput onScan={handleScan} placeholder={t["employee.scan_ready"]} />
+            <ScanInput
+              onScan={handleScan}
+              placeholder={t["employee.scan_ready"]}
+              cameraLabel={t["employee.open_camera"]}
+              stopCameraLabel={t["employee.stop_camera"]}
+              manualLabel={t["employee.scan_manual"]}
+              cameraErrorLabel={t["employee.camera_unavailable"]}
+              autoStartCamera
+            />
             {scanError && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
                 {scanError}
@@ -283,6 +344,19 @@ export function EmployeeDashboard({
                   {scanResult.customer_name ?? t["common.not_available"]} · {scanResult.customer_phone ?? t["common.not_available"]}
                 </div>
                 <div className="text-sm font-semibold">{formatCurrency(Number(scanResult.total_amount), locale)}</div>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="w-full"
+                  onClick={() => {
+                    setActiveOrderId(scanResult.id);
+                    setActiveSessionId(null);
+                    setActiveOrder(scanResult);
+                    setView("order_detail");
+                  }}
+                >
+                  {t["employee.open_order"]}
+                </Button>
                 {scanResult.status === "ready" && scanResult.payment_status === "paid" && (
                   <Button
                     size="lg"

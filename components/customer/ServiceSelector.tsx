@@ -74,14 +74,6 @@ export function ServiceSelector({
     });
   }
 
-  function addBag() {
-    // Adding a bag without weight for now — employee will have entered the weight
-    setItems((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), weightKg: 0, selectedServiceIds: new Set() },
-    ]);
-  }
-
   async function confirmOrder() {
     setSubmitting(true);
     try {
@@ -151,10 +143,6 @@ export function ServiceSelector({
           </div>
         </div>
       ))}
-
-      <Button variant="secondary" size="lg" onClick={addBag} className="w-full">
-        + {t["customer.add_bag"]}
-      </Button>
 
       <div className="bg-white rounded-xl border p-4">
         <div className="flex justify-between items-center text-lg font-bold">

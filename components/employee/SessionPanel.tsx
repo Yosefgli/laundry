@@ -2,9 +2,8 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/ui/StatusBadge";
-import { DegradedModeBanner, ReconnectingBanner } from "@/components/ui/DegradedModeBanner";
 import { useSessionChannel } from "@/hooks/useSessionChannel";
-import { SessionEvent } from "@/lib/realtime/events";
+import { SessionEvent, type BroadcastEnvelope } from "@/lib/realtime/events";
 import { formatCurrency, formatWeight, type Locale } from "@/lib/i18n";
 import type { Database } from "@/lib/db/database.types";
 
@@ -22,7 +21,7 @@ interface SessionPanelProps {
 }
 
 const NEXT_STATUS: Record<string, string> = {
-  confirmed: "washing",
+  paid:      "washing",
   washing:   "drying",
   drying:    "ironing",
   ironing:   "ready",
@@ -39,18 +38,19 @@ export function SessionPanel({
   onCancelSession,
   onOrderRefresh,
 }: SessionPanelProps) {
-  const [connState, setConnState] = useState<"connecting" | "connected" | "reconnecting" | "degraded" | "error">("connecting");
   const [advancing, setAdvancing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
-  const handleEvent = useCallback(() => {
+  const handleEvent = useCallback((envelope: BroadcastEnvelope) => {
+    if (envelope.type === SessionEvent.ORDER_CONFIRMED) {
+      onStatusAdvanced("confirmed");
+    }
     onOrderRefresh();
-  }, [onOrderRefresh]);
+  }, [onOrderRefresh, onStatusAdvanced]);
 
   const { publish } = useSessionChannel({
     sessionId,
     onEvent: handleEvent,
-    onStateChange: setConnState,
   });
 
   async function advanceStatus() {
@@ -97,9 +97,6 @@ export function SessionPanel({
 
   return (
     <div className="space-y-4">
-      {connState === "reconnecting" && <ReconnectingBanner message={t["common.reconnecting"]} />}
-      {connState === "degraded"     && <DegradedModeBanner message={t["common.degraded_mode"]} />}
-
       <div className="bg-white rounded-xl border p-4 space-y-3">
         <div className="flex items-center justify-between">
           <span className="font-bold text-lg">{order.order_number}</span>
