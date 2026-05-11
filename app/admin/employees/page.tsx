@@ -1,13 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { requireAdmin } from "@/lib/admin/requireAdmin";
 import Link from "next/link";
 
 export default async function EmployeesPage() {
+  await requireAdmin();
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-  const { data: emp } = await supabase.from("employees").select("role").eq("user_id", user.id).single();
-  if (emp?.role !== "admin") redirect("/employee");
 
   const { data: employees } = await supabase
     .from("employees")

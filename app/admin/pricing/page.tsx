@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { requireAdmin } from "@/lib/admin/requireAdmin";
 import Link from "next/link";
 import { PricingManager } from "@/components/admin/PricingManager";
 
@@ -16,12 +16,7 @@ async function getData() {
 }
 
 export default async function PricingPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-  const { data: emp } = await supabase.from("employees").select("role").eq("user_id", user.id).single();
-  if (emp?.role !== "admin") redirect("/employee");
-
+  await requireAdmin();
   const { services, rules } = await getData();
 
   return (

@@ -1,14 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { requireAdmin } from "@/lib/admin/requireAdmin";
 import Link from "next/link";
 import { SettingsManager } from "@/components/admin/SettingsManager";
 
 export default async function SettingsPage() {
+  await requireAdmin();
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-  const { data: emp } = await supabase.from("employees").select("role").eq("user_id", user.id).single();
-  if (emp?.role !== "admin") redirect("/employee");
 
   const { data: settings } = await supabase
     .from("system_settings")

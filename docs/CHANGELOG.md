@@ -1,2 +1,4 @@
 - 2026-05-11: Full MVP scaffold — Next.js App Router, Supabase schema (4 migrations), RLS, realtime session channels, employee dashboard, customer kiosk, barcode/receipt printing, admin panel (orders, pricing, workstations, settings, translations, audit log).
+- 2026-05-11: fix: extract admin auth guard to requireAdmin() helper — resolves TypeScript "never" build error in all 8 admin subpages.
 - fix: removed @types/bwip-js (phantom package), added .gitignore to prevent env files from reaching GitHub
+- fix: add autoprefixer to devDependencies, add package-lock.json to git — resolves Vercel build failure
