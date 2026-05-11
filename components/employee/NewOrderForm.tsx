@@ -5,6 +5,13 @@ import { z } from "zod";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import {
+  customerDeviceChannelName,
+  makeEnvelope,
+  SessionEvent,
+  type SessionStartedPayload,
+} from "@/lib/realtime/events";
 
 const schema = z.object({
   weightKg: z.number({ invalid_type_error: "Enter a number" }).positive().max(999),
@@ -25,6 +32,7 @@ export function NewOrderForm({
   employeeDeviceId,
   onCreated,
 }: NewOrderFormProps) {
+  const supabase = createClient();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +41,41 @@ export function NewOrderForm({
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
+
+  async function publishSessionStarted(payload: SessionStartedPayload) {
+    if (!payload.customerDeviceId) return;
+
+    const channel = supabase.channel(customerDeviceChannelName(payload.customerDeviceId));
+    let completed = false;
+
+    await new Promise<void>((resolve) => {
+      const done = () => {
+        if (completed) return;
+        completed = true;
+        resolve();
+      };
+      const timeout = window.setTimeout(done, 1200);
+
+      channel.subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          window.clearTimeout(timeout);
+          await channel.send({
+            type: "broadcast",
+            event: SessionEvent.SESSION_STARTED,
+            payload: makeEnvelope(SessionEvent.SESSION_STARTED, payload),
+          });
+          done();
+        }
+
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          window.clearTimeout(timeout);
+          done();
+        }
+      });
+    });
+
+    await supabase.removeChannel(channel);
+  }
 
   async function onSubmit(data: FormData) {
     setLoading(true);
@@ -66,6 +109,13 @@ export function NewOrderForm({
       });
       const sessionJson = await sessionRes.json();
       if (!sessionJson.data) throw new Error(sessionJson.error ?? t["common.error"]);
+
+      void publishSessionStarted({
+        sessionId: sessionJson.data.id,
+        orderId,
+        customerDeviceId: sessionJson.data.customer_device_id ?? undefined,
+        workflowStep: sessionJson.data.workflow_step ?? "customer_info",
+      });
 
       onCreated(orderId, sessionJson.data.id);
     } catch (err) {

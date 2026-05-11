@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+export const PHONE_COUNTRY_CODES = [
+  "+972",
+  "+970",
+  "+1",
+  "+962",
+  "+20",
+  "+95",
+] as const;
+
 export const CreateOrderSchema = z.object({
   workstationId: z.string().uuid().optional(),
   "idempotency-key": z.string().min(1).max(128).optional(),
@@ -30,7 +39,7 @@ export const AddOrderItemSchema = z.object({
 
 export const CustomerInfoSchema = z.object({
   name: z.string().min(1).max(200).trim(),
-  phone: z.string().min(5).max(30).trim(),
+  phone: z.string().min(8).max(30).trim().regex(/^\+\d{7,15}$/),
   notes: z.string().max(500).optional(),
 });
 

@@ -49,6 +49,7 @@ export default async function CustomerEntryPage() {
 
   return (
     <CustomerPriceDisplay
+      customerDeviceId={`customer-${employee.id}`}
       serviceTypes={serviceTypes}
       translations={i18n.translations}
       locale={i18n.locale}

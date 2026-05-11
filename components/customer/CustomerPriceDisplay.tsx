@@ -3,6 +3,13 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency, isRTL, type Locale, type TranslationMap } from "@/lib/i18n";
+import { createClient } from "@/lib/supabase/client";
+import {
+  customerDeviceChannelName,
+  SessionEvent,
+  type BroadcastEnvelope,
+  type SessionStartedPayload,
+} from "@/lib/realtime/events";
 import type { Database } from "@/lib/db/database.types";
 
 type PricingRule = Database["public"]["Tables"]["pricing_rules"]["Row"];
@@ -11,6 +18,7 @@ type ServiceType = Database["public"]["Tables"]["service_types"]["Row"] & {
 };
 
 interface CustomerPriceDisplayProps {
+  customerDeviceId: string;
   serviceTypes: ServiceType[];
   translations: TranslationMap;
   locale: Locale;
@@ -26,6 +34,7 @@ function activeRule(service: ServiceType) {
 }
 
 export function CustomerPriceDisplay({
+  customerDeviceId,
   serviceTypes,
   translations: t,
   locale,
@@ -35,6 +44,24 @@ export function CustomerPriceDisplay({
 
   useEffect(() => {
     let cancelled = false;
+    const supabase = createClient();
+
+    function openSession(sessionId: string, deviceId = customerDeviceId) {
+      router.replace(`/customer/${sessionId}?device=${encodeURIComponent(deviceId)}`);
+    }
+
+    const channel = supabase
+      .channel(customerDeviceChannelName(customerDeviceId), {
+        config: { broadcast: { self: false } },
+      })
+      .on("broadcast", { event: SessionEvent.SESSION_STARTED }, ({ payload }) => {
+        const envelope = payload as BroadcastEnvelope<SessionStartedPayload>;
+        const session = envelope.payload;
+        if (!session?.sessionId) return;
+        if (session.customerDeviceId && session.customerDeviceId !== customerDeviceId) return;
+        openSession(session.sessionId, session.customerDeviceId);
+      })
+      .subscribe();
 
     async function checkForSession() {
       try {
@@ -46,21 +73,22 @@ export function CustomerPriceDisplay({
 
         const json = (await res.json()) as ActiveSessionResponse;
         if (!cancelled && json.data?.id) {
-          router.replace(`/customer/${json.data.id}?device=${encodeURIComponent(json.data.customerDeviceId)}`);
+          openSession(json.data.id, json.data.customerDeviceId);
         }
       } catch {
-        // Keep the price list visible if the short polling check fails.
+        // Keep the price list visible if the fallback check fails.
       }
     }
 
     void checkForSession();
-    const interval = window.setInterval(checkForSession, 2000);
+    const interval = window.setInterval(checkForSession, 10000);
 
     return () => {
       cancelled = true;
       window.clearInterval(interval);
+      void supabase.removeChannel(channel);
     };
-  }, [router]);
+  }, [customerDeviceId, router]);
 
   const activeServices = serviceTypes.filter((service) => service.is_active);
 

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/ui/StatusBadge";
 import { DegradedModeBanner, ReconnectingBanner } from "@/components/ui/DegradedModeBanner";
 import { useSessionChannel } from "@/hooks/useSessionChannel";
-import { SessionEvent } from "@/lib/realtime/events";
+import { SessionEvent, type BroadcastEnvelope } from "@/lib/realtime/events";
 import { formatCurrency, formatWeight, type Locale } from "@/lib/i18n";
 import type { Database } from "@/lib/db/database.types";
 
@@ -43,9 +43,12 @@ export function SessionPanel({
   const [advancing, setAdvancing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
-  const handleEvent = useCallback(() => {
+  const handleEvent = useCallback((envelope: BroadcastEnvelope) => {
+    if (envelope.type === SessionEvent.ORDER_CONFIRMED) {
+      onStatusAdvanced("confirmed");
+    }
     onOrderRefresh();
-  }, [onOrderRefresh]);
+  }, [onOrderRefresh, onStatusAdvanced]);
 
   const { publish } = useSessionChannel({
     sessionId,
