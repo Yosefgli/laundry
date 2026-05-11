@@ -24,7 +24,11 @@
     "bwip-js": "^3.4.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
+<<<<<<< HEAD
     "next": "15.5.18",
+=======
+    "next": "15.1.11",
+>>>>>>> 1b50e7fff5ea885d7c8132e68349c20a5b856ebe
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
