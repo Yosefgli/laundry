@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/db/database.types";
+import type { Database, Json } from "@/lib/db/database.types";
 
 type AuditAction = Database["public"]["Enums"]["audit_action"];
 
@@ -19,7 +19,7 @@ export async function logAudit(
     action: opts.action,
     entity_type: opts.entityType,
     entity_id: opts.entityId ?? null,
-    old_values: opts.oldValues ?? null,
-    new_values: opts.newValues ?? null,
+    old_values: (opts.oldValues ?? null) as Json | null,
+    new_values: (opts.newValues ?? null) as Json | null,
   });
 }

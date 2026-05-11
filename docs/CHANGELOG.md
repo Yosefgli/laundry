@@ -2,3 +2,4 @@
 - 2026-05-11: fix: extract admin auth guard to requireAdmin() helper — resolves TypeScript "never" build error in all 8 admin subpages.
 - fix: removed @types/bwip-js (phantom package), added .gitignore to prevent env files from reaching GitHub
 - fix: add autoprefixer to devDependencies, add package-lock.json to git — resolves Vercel build failure
+- 2026-05-11: fix: resolve Vercel TypeScript build failure — cast createServerClient/createBrowserClient to SupabaseClient<Database> (bypasses @supabase/ssr v0.5.2 / supabase-js v2.105 3→5 param incompatibility), add Partial<> to all Insert types, add forward+reverse Relationships to all tables, fix Record<string,unknown> update payload in orders status route.

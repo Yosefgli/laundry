@@ -23,8 +23,9 @@ export type Database = {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["employees"]["Row"], "id" | "created_at" | "updated_at"> & { id?: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["employees"]["Row"], "id" | "created_at" | "updated_at">> & { id?: string };
         Update: Partial<Database["public"]["Tables"]["employees"]["Insert"]>;
+        Relationships: [];
       };
       workstations: {
         Row: {
@@ -37,8 +38,9 @@ export type Database = {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["workstations"]["Row"], "id" | "created_at" | "updated_at"> & { id?: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["workstations"]["Row"], "id" | "created_at" | "updated_at">> & { id?: string };
         Update: Partial<Database["public"]["Tables"]["workstations"]["Insert"]>;
+        Relationships: [];
       };
       service_types: {
         Row: {
@@ -49,8 +51,17 @@ export type Database = {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["service_types"]["Row"], "id" | "created_at" | "updated_at"> & { id?: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["service_types"]["Row"], "id" | "created_at" | "updated_at">> & { id?: string };
         Update: Partial<Database["public"]["Tables"]["service_types"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "pricing_rules_service_type_id_fkey";
+            columns: ["id"];
+            isOneToOne: false;
+            referencedRelation: "pricing_rules";
+            referencedColumns: ["service_type_id"];
+          }
+        ];
       };
       pricing_rules: {
         Row: {
@@ -66,8 +77,17 @@ export type Database = {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["pricing_rules"]["Row"], "id" | "created_at" | "updated_at"> & { id?: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["pricing_rules"]["Row"], "id" | "created_at" | "updated_at">> & { id?: string };
         Update: Partial<Database["public"]["Tables"]["pricing_rules"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "pricing_rules_service_type_id_fkey";
+            columns: ["service_type_id"];
+            isOneToOne: false;
+            referencedRelation: "service_types";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       orders: {
         Row: {
@@ -90,8 +110,31 @@ export type Database = {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["orders"]["Row"], "id" | "order_number" | "created_at" | "updated_at"> & { id?: string; order_number?: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["orders"]["Row"], "id" | "order_number" | "created_at" | "updated_at">> & { id?: string; order_number?: string };
         Update: Partial<Database["public"]["Tables"]["orders"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "orders_employee_id_fkey";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "employees";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "orders_workstation_id_fkey";
+            columns: ["workstation_id"];
+            isOneToOne: false;
+            referencedRelation: "workstations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey";
+            columns: ["id"];
+            isOneToOne: false;
+            referencedRelation: "order_items";
+            referencedColumns: ["order_id"];
+          }
+        ];
       };
       order_items: {
         Row: {
@@ -104,8 +147,24 @@ export type Database = {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["order_items"]["Row"], "id" | "created_at" | "updated_at"> & { id?: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["order_items"]["Row"], "id" | "created_at" | "updated_at">> & { id?: string };
         Update: Partial<Database["public"]["Tables"]["order_items"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_item_services_order_item_id_fkey";
+            columns: ["id"];
+            isOneToOne: false;
+            referencedRelation: "order_item_services";
+            referencedColumns: ["order_item_id"];
+          }
+        ];
       };
       order_item_services: {
         Row: {
@@ -118,8 +177,31 @@ export type Database = {
           line_total: number;
           created_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["order_item_services"]["Row"], "id" | "created_at"> & { id?: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["order_item_services"]["Row"], "id" | "created_at">> & { id?: string };
         Update: Partial<Database["public"]["Tables"]["order_item_services"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "order_item_services_order_item_id_fkey";
+            columns: ["order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "order_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_item_services_service_type_id_fkey";
+            columns: ["service_type_id"];
+            isOneToOne: false;
+            referencedRelation: "service_types";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_item_services_pricing_rule_id_fkey";
+            columns: ["pricing_rule_id"];
+            isOneToOne: false;
+            referencedRelation: "pricing_rules";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       sessions: {
         Row: {
@@ -137,8 +219,24 @@ export type Database = {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["sessions"]["Row"], "id" | "created_at" | "updated_at"> & { id?: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["sessions"]["Row"], "id" | "created_at" | "updated_at">> & { id?: string };
         Update: Partial<Database["public"]["Tables"]["sessions"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "sessions_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sessions_workstation_id_fkey";
+            columns: ["workstation_id"];
+            isOneToOne: false;
+            referencedRelation: "workstations";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       payments: {
         Row: {
@@ -150,8 +248,24 @@ export type Database = {
           notes: string | null;
           created_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["payments"]["Row"], "id" | "created_at"> & { id?: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["payments"]["Row"], "id" | "created_at">> & { id?: string };
         Update: Partial<Database["public"]["Tables"]["payments"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "payments_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_employee_id_fkey";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "employees";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       incidents: {
         Row: {
@@ -164,8 +278,24 @@ export type Database = {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["incidents"]["Row"], "id" | "created_at" | "updated_at"> & { id?: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["incidents"]["Row"], "id" | "created_at" | "updated_at">> & { id?: string };
         Update: Partial<Database["public"]["Tables"]["incidents"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "incidents_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "incidents_employee_id_fkey";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "employees";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       audit_logs: {
         Row: {
@@ -178,8 +308,17 @@ export type Database = {
           new_values: Json | null;
           created_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["audit_logs"]["Row"], "id" | "created_at"> & { id?: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["audit_logs"]["Row"], "id" | "created_at">> & { id?: string };
         Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_employee_id_fkey";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "employees";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       translations: {
         Row: {
@@ -190,8 +329,9 @@ export type Database = {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["translations"]["Row"], "id" | "created_at" | "updated_at"> & { id?: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["translations"]["Row"], "id" | "created_at" | "updated_at">> & { id?: string };
         Update: Partial<Database["public"]["Tables"]["translations"]["Insert"]>;
+        Relationships: [];
       };
       system_settings: {
         Row: {
@@ -202,8 +342,9 @@ export type Database = {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["system_settings"]["Row"], "id" | "created_at" | "updated_at"> & { id?: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["system_settings"]["Row"], "id" | "created_at" | "updated_at">> & { id?: string };
         Update: Partial<Database["public"]["Tables"]["system_settings"]["Insert"]>;
+        Relationships: [];
       };
       idempotency_keys: {
         Row: {
@@ -213,8 +354,9 @@ export type Database = {
           created_at: string;
           expires_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["idempotency_keys"]["Row"], "id" | "created_at"> & { id?: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["idempotency_keys"]["Row"], "id" | "created_at">> & { id?: string };
         Update: never;
+        Relationships: [];
       };
     };
     Views: Record<string, never>;

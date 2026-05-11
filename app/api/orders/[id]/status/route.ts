@@ -41,12 +41,13 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
       );
     }
 
-    const updatePayload: Record<string, unknown> = { status: parsed.data.status };
-
-    if (parsed.data.status === "delivered") {
-      updatePayload.delivered_at = new Date().toISOString();
-      updatePayload.delivered_by = parsed.data.deliveredBy ?? employee.id;
-    }
+    const updatePayload = parsed.data.status === "delivered"
+      ? {
+          status: parsed.data.status,
+          delivered_at: new Date().toISOString(),
+          delivered_by: parsed.data.deliveredBy ?? employee.id,
+        }
+      : { status: parsed.data.status };
 
     const { data: updated, error } = await supabase
       .from("orders")
