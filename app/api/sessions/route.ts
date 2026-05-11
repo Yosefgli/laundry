@@ -4,10 +4,6 @@ import { requireEmployee } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { CreateSessionSchema } from "@/lib/schemas/session";
 
-function generatePairingCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
 export async function POST(request: NextRequest) {
   try {
     const employee = await requireEmployee();
@@ -19,17 +15,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ data: null, error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const pairingCode = generatePairingCode();
-    const pairingExpires = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-
     const { data: session, error } = await supabase
       .from("sessions")
       .insert({
         order_id: parsed.data.orderId,
         employee_device_id: parsed.data.employeeDeviceId,
+        customer_device_id: `customer-${employee.id}`,
         workstation_id: parsed.data.workstationId ?? null,
-        pairing_code: pairingCode,
-        pairing_code_expires: pairingExpires,
+        pairing_code: null,
+        pairing_code_expires: null,
         status: "active",
         workflow_step: "customer_info",
       })

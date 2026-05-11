@@ -5,10 +5,8 @@ import { ServiceSelector } from "@/components/customer/ServiceSelector";
 import { DegradedModeBanner, ReconnectingBanner } from "@/components/ui/DegradedModeBanner";
 import { useSessionChannel } from "@/hooks/useSessionChannel";
 import { SessionEvent } from "@/lib/realtime/events";
-import { isRTL } from "@/lib/i18n";
-import type { Locale } from "@/lib/i18n";
+import { formatCurrency, isRTL, type Locale } from "@/lib/i18n";
 import type { Database } from "@/lib/db/database.types";
-import { formatCurrency } from "@/lib/i18n";
 
 type ServiceType = Database["public"]["Tables"]["service_types"]["Row"] & {
   pricing_rules?: Database["public"]["Tables"]["pricing_rules"]["Row"][];
@@ -30,7 +28,6 @@ interface CustomerKioskProps {
   serviceTypes: ServiceType[];
   translations: Record<string, string>;
   locale: Locale;
-  customerDeviceId: string;
 }
 
 export function CustomerKiosk({
@@ -39,7 +36,6 @@ export function CustomerKiosk({
   serviceTypes,
   translations: t,
   locale,
-  customerDeviceId,
 }: CustomerKioskProps) {
   const [step, setStep] = useState<Step>("info");
   const [total, setTotal] = useState(0);
@@ -81,24 +77,8 @@ export function CustomerKiosk({
 
       {/* Kiosk header */}
       <header className="bg-brand-600 text-white px-6 py-4">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
+        <div className="max-w-lg mx-auto">
           <h1 className="font-bold text-lg">{t["customer.welcome"]}</h1>
-          <div className="flex gap-2">
-            {(["he", "en", "my"] as Locale[]).map((loc) => (
-              <button
-                key={loc}
-                className="text-xs px-2 py-1 rounded border border-white/30 hover:bg-white/20"
-                onClick={() => {
-                  const url = new URL(window.location.href);
-                  url.searchParams.set("locale", loc);
-                  url.searchParams.set("device", customerDeviceId);
-                  window.location.href = url.toString();
-                }}
-              >
-                {loc.toUpperCase()}
-              </button>
-            ))}
-          </div>
         </div>
       </header>
 
@@ -106,7 +86,7 @@ export function CustomerKiosk({
         {/* Progress indicator */}
         {step !== "cancelled" && step !== "confirmed" && (
           <div className="flex gap-1">
-            {(["info", "services"] as const).map((s, idx) => (
+            {(["info", "services"] as const).map((s) => (
               <div
                 key={s}
                 className={`flex-1 h-1.5 rounded-full ${
@@ -164,7 +144,7 @@ export function CustomerKiosk({
           <div className="bg-white rounded-xl border p-8 text-center space-y-4">
             <div className="text-5xl">✗</div>
             <h2 className="text-2xl font-bold text-red-600">{t["status.cancelled"]}</h2>
-            <p className="text-gray-500 text-sm">Please see the employee for assistance.</p>
+            <p className="text-gray-500 text-sm">{t["customer.cancelled_help"]}</p>
           </div>
         )}
       </main>

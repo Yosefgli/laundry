@@ -3,7 +3,7 @@ import { useRef } from "react";
 import { Barcode } from "@/components/printing/Barcode";
 import { Button } from "@/components/ui/Button";
 import type { Database } from "@/lib/db/database.types";
-import { formatCurrency } from "@/lib/i18n";
+import { formatCurrency, formatWeight } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"] & {
@@ -77,14 +77,16 @@ export function PrintLayout({
         </div>
         <div className="flex justify-between">
           <span>{t["print.weight"]}</span>
-          <span>{order.total_weight_kg} kg</span>
+          <span>{formatWeight(Number(order.total_weight_kg), locale, t["unit.kg"])}</span>
         </div>
 
         <hr className="border-dashed my-1" />
 
         {order.order_items?.map((item, idx) => (
           <div key={item.id} className="mb-1">
-            <div className="font-medium">{t["customer.bag"]} {idx + 1} — {item.weight_kg} kg</div>
+            <div className="font-medium">
+              {t["customer.bag"]} {idx + 1} — {formatWeight(Number(item.weight_kg), locale, t["unit.kg"])}
+            </div>
             {item.order_item_services?.map((ois) => (
               <div key={ois.id} className="flex justify-between pl-2 text-xs">
                 <span>{t[`service.${ois.service_type?.code}`] ?? ois.service_type?.code}</span>

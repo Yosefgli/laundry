@@ -16,7 +16,7 @@ interface NewOrderFormProps {
   translations: Record<string, string>;
   workstationId?: string;
   employeeDeviceId: string;
-  onCreated: (orderId: string, sessionId: string, pairingCode: string) => void;
+  onCreated: (orderId: string, sessionId: string) => void;
 }
 
 export function NewOrderForm({
@@ -47,7 +47,7 @@ export function NewOrderForm({
         body: JSON.stringify({ workstationId }),
       });
       const orderJson = await orderRes.json();
-      if (!orderJson.data) throw new Error(orderJson.error ?? "Failed to create order");
+      if (!orderJson.data) throw new Error(orderJson.error ?? t["common.error"]);
 
       const orderId: string = orderJson.data.id;
 
@@ -65,11 +65,11 @@ export function NewOrderForm({
         body: JSON.stringify({ orderId, employeeDeviceId, workstationId }),
       });
       const sessionJson = await sessionRes.json();
-      if (!sessionJson.data) throw new Error(sessionJson.error ?? "Failed to create session");
+      if (!sessionJson.data) throw new Error(sessionJson.error ?? t["common.error"]);
 
-      onCreated(orderId, sessionJson.data.id, sessionJson.data.pairing_code);
+      onCreated(orderId, sessionJson.data.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(err instanceof Error ? err.message : t["common.error"]);
     } finally {
       setLoading(false);
     }

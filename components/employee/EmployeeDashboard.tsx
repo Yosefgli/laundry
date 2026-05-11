@@ -7,7 +7,7 @@ import { OrderStatusBadge, PaymentStatusBadge } from "@/components/ui/StatusBadg
 import { Button } from "@/components/ui/Button";
 import { PrintLayout } from "@/components/printing/PrintLayout";
 import { BagLabel } from "@/components/printing/BagLabel";
-import type { Locale } from "@/lib/i18n";
+import { formatCurrency, type Locale } from "@/lib/i18n";
 import type { Database } from "@/lib/db/database.types";
 import { createClient } from "@/lib/supabase/client";
 
@@ -75,7 +75,6 @@ export function EmployeeDashboard({
   const [view, setView] = useState<View>("dashboard");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const [scanResult, setScanResult] = useState<Order | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -83,10 +82,9 @@ export function EmployeeDashboard({
 
   const deviceId = `employee-${employee.id}-${workstationId ?? "default"}`;
 
-  function handleOrderCreated(orderId: string, sessionId: string, code: string) {
+  function handleOrderCreated(orderId: string, sessionId: string) {
     setActiveOrderId(orderId);
     setActiveSessionId(sessionId);
-    setPairingCode(code);
     fetchOrder(orderId);
     setView("active_session");
   }
@@ -116,7 +114,7 @@ export function EmployeeDashboard({
     if (json.data) {
       setScanResult(json.data);
     } else {
-      setScanError(json.error ?? "Not found");
+      setScanError(json.error ?? t["common.not_available"]);
     }
   }
 
@@ -162,7 +160,7 @@ export function EmployeeDashboard({
               size="sm"
               onClick={() => setView("dashboard")}
             >
-              Dashboard
+              {t["employee.dashboard"]}
             </Button>
             <Button
               variant={view === "new_order" ? "primary" : "secondary"}
@@ -184,13 +182,13 @@ export function EmployeeDashboard({
         {/* Dashboard */}
         {view === "dashboard" && (
           <div className="space-y-3">
-            <Button size="xl" className="w-full" onClick={() => setView("new_order")}>
-              + {t["employee.new_order"]}
-            </Button>
-            <div className="bg-white rounded-xl border">
-              <div className="p-3 border-b font-semibold text-sm text-gray-700">Active Orders</div>
+              <Button size="xl" className="w-full" onClick={() => setView("new_order")}>
+                + {t["employee.new_order"]}
+              </Button>
+              <div className="bg-white rounded-xl border">
+              <div className="p-3 border-b font-semibold text-sm text-gray-700">{t["employee.active_orders"]}</div>
               {recentOrders.length === 0 ? (
-                <p className="p-4 text-sm text-gray-500">No active orders</p>
+                <p className="p-4 text-sm text-gray-500">{t["employee.no_active_orders"]}</p>
               ) : (
                 <ul className="divide-y">
                   {recentOrders.map((order) => (
@@ -236,8 +234,8 @@ export function EmployeeDashboard({
             <SessionPanel
               sessionId={activeSessionId}
               order={activeOrder}
-              pairingCode={pairingCode ?? undefined}
               translations={t}
+              locale={locale}
               onStatusAdvanced={(s) => setActiveOrder((o) => o ? { ...o, status: s as Order["status"] } : o)}
               onMarkPaid={handleMarkPaid}
               onCancelSession={() => { setView("dashboard"); setActiveOrder(null); }}
@@ -255,6 +253,7 @@ export function EmployeeDashboard({
                 <BagLabel
                   order={activeOrder}
                   translations={t}
+                  locale={locale}
                   printLabel={t["print.print_label"]}
                 />
               </div>
@@ -265,10 +264,7 @@ export function EmployeeDashboard({
         {/* Scan */}
         {view === "scan" && (
           <div className="space-y-4">
-            <ScanInput
-              onScan={handleScan}
-              placeholder={`${t["employee.scan_barcode"]}…`}
-            />
+            <ScanInput onScan={handleScan} placeholder={t["employee.scan_ready"]} />
             {scanError && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
                 {scanError}
@@ -283,8 +279,10 @@ export function EmployeeDashboard({
                     label={t[`status.${scanResult.status}`] ?? scanResult.status}
                   />
                 </div>
-                <div className="text-sm">{scanResult.customer_name} · {scanResult.customer_phone}</div>
-                <div className="text-sm font-semibold">₪{Number(scanResult.total_amount).toFixed(2)}</div>
+                <div className="text-sm">
+                  {scanResult.customer_name ?? t["common.not_available"]} · {scanResult.customer_phone ?? t["common.not_available"]}
+                </div>
+                <div className="text-sm font-semibold">{formatCurrency(Number(scanResult.total_amount), locale)}</div>
                 {scanResult.status === "ready" && scanResult.payment_status === "paid" && (
                   <Button
                     size="lg"

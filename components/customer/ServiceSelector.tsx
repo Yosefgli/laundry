@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
-import { formatCurrency } from "@/lib/i18n";
+import { formatCurrency, formatWeight } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n";
 import type { Database } from "@/lib/db/database.types";
 
@@ -119,7 +119,7 @@ export function ServiceSelector({
       {items.map((item, idx) => (
         <div key={item.id} className="bg-white rounded-xl border p-4 space-y-3">
           <div className="font-semibold text-gray-700">
-            {t["customer.bag"]} {idx + 1} — {item.weightKg} kg
+            {t["customer.bag"]} {idx + 1} — {formatWeight(item.weightKg, locale, t["unit.kg"])}
           </div>
           <div className="grid grid-cols-2 gap-2">
             {serviceTypes.filter((s) => s.is_active).map((service) => {

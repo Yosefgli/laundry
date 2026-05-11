@@ -3,10 +3,17 @@ import { useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import type { Database } from "@/lib/db/database.types";
+import type { TranslationMap } from "@/lib/i18n";
 
 type Setting = Database["public"]["Tables"]["system_settings"]["Row"];
 
-export function SettingsManager({ settings }: { settings: Setting[] }) {
+export function SettingsManager({
+  settings,
+  translations: t,
+}: {
+  settings: Setting[];
+  translations: TranslationMap;
+}) {
   const [values, setValues] = useState<Record<string, string>>(
     Object.fromEntries(settings.map((s) => [s.key, s.value]))
   );
@@ -32,7 +39,9 @@ export function SettingsManager({ settings }: { settings: Setting[] }) {
           <div>
             <span className="font-mono text-xs text-gray-500">{setting.key}</span>
             {setting.description && (
-              <p className="text-sm text-gray-600">{setting.description}</p>
+              <p className="text-sm text-gray-600">
+                {t[`setting.${setting.key}`] ?? setting.description}
+              </p>
             )}
           </div>
           <div className="flex gap-2">
@@ -47,7 +56,7 @@ export function SettingsManager({ settings }: { settings: Setting[] }) {
               onClick={() => saveSetting(setting.key, setting.id)}
               variant={saved === setting.key ? "secondary" : "primary"}
             >
-              {saved === setting.key ? "Saved ✓" : "Save"}
+              {saved === setting.key ? `${t["common.saved"]} ✓` : t["common.save"]}
             </Button>
           </div>
         </div>

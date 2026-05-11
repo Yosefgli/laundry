@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import type { Database } from "@/lib/db/database.types";
+import type { TranslationMap } from "@/lib/i18n";
 
 type ServiceType = Database["public"]["Tables"]["service_types"]["Row"];
 type PricingRule = Database["public"]["Tables"]["pricing_rules"]["Row"] & {
@@ -12,9 +13,10 @@ type PricingRule = Database["public"]["Tables"]["pricing_rules"]["Row"] & {
 interface PricingManagerProps {
   services: ServiceType[];
   rules: PricingRule[];
+  translations: TranslationMap;
 }
 
-export function PricingManager({ services, rules }: PricingManagerProps) {
+export function PricingManager({ services, rules, translations: t }: PricingManagerProps) {
   const [saving, setSaving] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, { pricePerKg: string; flatFee: string; minimumCharge: string; taxRate: string }>>(
     Object.fromEntries(
@@ -62,31 +64,31 @@ export function PricingManager({ services, rules }: PricingManagerProps) {
 
         return (
           <div key={service.id} className="bg-white rounded-xl border p-5 space-y-3">
-            <h3 className="font-semibold capitalize">{service.code}</h3>
+            <h3 className="font-semibold capitalize">{t[`service.${service.code}`] ?? service.code}</h3>
             <div className="grid grid-cols-2 gap-3">
               <Input
-                label="Price / kg (₪)"
+                label={t["admin.price_per_kg"]}
                 type="number"
                 step="0.001"
                 value={v.pricePerKg}
                 onChange={(e) => updateField(service.id, "pricePerKg", e.target.value)}
               />
               <Input
-                label="Flat Fee (₪)"
+                label={t["admin.flat_fee"]}
                 type="number"
                 step="0.01"
                 value={v.flatFee}
                 onChange={(e) => updateField(service.id, "flatFee", e.target.value)}
               />
               <Input
-                label="Minimum (₪)"
+                label={t["admin.minimum_charge"]}
                 type="number"
                 step="0.01"
                 value={v.minimumCharge}
                 onChange={(e) => updateField(service.id, "minimumCharge", e.target.value)}
               />
               <Input
-                label="Tax Rate (%)"
+                label={t["admin.tax_rate"]}
                 type="number"
                 step="0.1"
                 value={v.taxRate}
@@ -98,7 +100,7 @@ export function PricingManager({ services, rules }: PricingManagerProps) {
               loading={saving === service.id}
               onClick={() => saveRule(service.id, rule.id)}
             >
-              Save
+              {t["common.save"]}
             </Button>
           </div>
         );

@@ -5,6 +5,7 @@ import { OrderStatusBadge, PaymentStatusBadge } from "@/components/ui/StatusBadg
 import { DegradedModeBanner, ReconnectingBanner } from "@/components/ui/DegradedModeBanner";
 import { useSessionChannel } from "@/hooks/useSessionChannel";
 import { SessionEvent } from "@/lib/realtime/events";
+import { formatCurrency, formatWeight, type Locale } from "@/lib/i18n";
 import type { Database } from "@/lib/db/database.types";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"];
@@ -12,8 +13,8 @@ type Order = Database["public"]["Tables"]["orders"]["Row"];
 interface SessionPanelProps {
   sessionId: string;
   order: Order;
-  pairingCode?: string;
   translations: Record<string, string>;
+  locale: Locale;
   onStatusAdvanced: (newStatus: string) => void;
   onMarkPaid: () => void;
   onCancelSession: () => void;
@@ -31,8 +32,8 @@ const NEXT_STATUS: Record<string, string> = {
 export function SessionPanel({
   sessionId,
   order,
-  pairingCode,
   translations: t,
+  locale,
   onStatusAdvanced,
   onMarkPaid,
   onCancelSession,
@@ -121,15 +122,8 @@ export function SessionPanel({
         )}
 
         <div className="text-sm text-gray-700">
-          {order.total_weight_kg} kg · ₪{Number(order.total_amount).toFixed(2)}
+          {formatWeight(Number(order.total_weight_kg), locale, t["unit.kg"])} · {formatCurrency(Number(order.total_amount), locale)}
         </div>
-
-        {pairingCode && (
-          <div className="bg-blue-50 rounded-lg p-3 text-center">
-            <div className="text-sm text-blue-600 font-medium">Pairing Code</div>
-            <div className="text-3xl font-black tracking-[0.5em] text-blue-700">{pairingCode}</div>
-          </div>
-        )}
       </div>
 
       <div className="flex flex-wrap gap-2">

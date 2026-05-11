@@ -1,21 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { EmployeeDashboard } from "@/components/employee/EmployeeDashboard";
-
-async function getTranslations(locale: string) {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("translations")
-    .select("key, value")
-    .eq("locale", locale);
-  return Object.fromEntries((data ?? []).map((r) => [r.key, r.value]));
-}
-
-async function getSettings() {
-  const supabase = await createClient();
-  const { data } = await supabase.from("system_settings").select("key, value");
-  return Object.fromEntries((data ?? []).map((r) => [r.key, r.value]));
-}
+import { getI18n } from "@/lib/i18n/server";
 
 async function getEmployee() {
   const supabase = await createClient();
@@ -55,10 +41,8 @@ export default async function EmployeePage() {
   const employee = await getEmployee();
   if (!employee) redirect("/auth/login");
 
-  const settings = await getSettings();
-  const locale = settings["default_locale"] ?? "he";
-  const [translations, workstation, recentOrders] = await Promise.all([
-    getTranslations(locale),
+  const { locale, translations: i18nTranslations } = await getI18n();
+  const [workstation, recentOrders] = await Promise.all([
     getWorkstation(),
     getRecentOrders(),
   ]);
@@ -66,8 +50,8 @@ export default async function EmployeePage() {
   return (
     <EmployeeDashboard
       employee={employee}
-      translations={translations}
-      locale={locale as "en" | "he" | "my"}
+      translations={i18nTranslations}
+      locale={locale}
       workstationId={workstation?.id}
       workstationName={workstation?.name ?? "Station"}
       recentOrders={recentOrders}

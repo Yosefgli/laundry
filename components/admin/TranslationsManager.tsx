@@ -3,10 +3,17 @@ import { useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import type { Database } from "@/lib/db/database.types";
+import type { TranslationMap } from "@/lib/i18n";
 
 type Translation = Database["public"]["Tables"]["translations"]["Row"];
 
-export function TranslationsManager({ translations }: { translations: Translation[] }) {
+export function TranslationsManager({
+  translations,
+  uiTranslations: t,
+}: {
+  translations: Translation[];
+  uiTranslations: TranslationMap;
+}) {
   const locales = ["en", "he", "my"];
   const keys = [...new Set(translations.map((t) => t.key))];
   const [values, setValues] = useState<Record<string, string>>(
@@ -34,7 +41,7 @@ export function TranslationsManager({ translations }: { translations: Translatio
   return (
     <div className="space-y-4">
       <Input
-        placeholder="Filter by key…"
+        placeholder={t["admin.filter_by_key"]}
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
       />
@@ -42,7 +49,7 @@ export function TranslationsManager({ translations }: { translations: Translatio
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="text-left px-4 py-2 font-semibold text-gray-600 w-48">Key</th>
+              <th className="text-left px-4 py-2 font-semibold text-gray-600 w-48">{t["admin.translation_key"]}</th>
               {locales.map((loc) => (
                 <th key={loc} className="text-left px-4 py-2 font-semibold text-gray-600">
                   {loc.toUpperCase()}
@@ -69,7 +76,7 @@ export function TranslationsManager({ translations }: { translations: Translatio
                           size="sm"
                           variant="secondary"
                           loading={saving === saveKey}
-                          onClick={() => save(key, locale, row?.id)}
+                          onClick={() => save(key, locale, row?.id || undefined)}
                         >
                           ✓
                         </Button>

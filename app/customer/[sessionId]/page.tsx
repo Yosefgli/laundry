@@ -1,11 +1,12 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { CustomerKiosk } from "@/components/customer/CustomerKiosk";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Database } from "@/lib/db/database.types";
+import { getI18n } from "@/lib/i18n/server";
+import { getAuthenticatedEmployee } from "@/lib/auth";
 
 type RouteProps = {
   params: Promise<{ sessionId: string }>;
-  searchParams: Promise<{ device?: string; locale?: string }>;
 };
 
 type ServiceTypeRow = Database["public"]["Tables"]["service_types"]["Row"];
@@ -24,7 +25,7 @@ async function getSessionData(sessionId: string) {
     .select(`
       id, status, workflow_step, order_id,
       order:orders(
-        id, order_number, status, total_weight_kg,
+        id, employee_id, order_number, status, total_weight_kg,
         order_items(id, weight_kg, notes)
       )
     `)
@@ -52,30 +53,21 @@ async function getServiceTypes(): Promise<ServiceTypeWithPricingRules[]> {
   }));
 }
 
-async function getTranslations(locale: string) {
-  const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("translations")
-    .select("key, value")
-    .eq("locale", locale);
-  return Object.fromEntries((data ?? []).map((r) => [r.key, r.value]));
-}
-
-export default async function CustomerSessionPage({ params, searchParams }: RouteProps) {
+export default async function CustomerSessionPage({ params }: RouteProps) {
   const { sessionId } = await params;
-  const { device: customerDeviceId, locale: localeParam } = await searchParams;
+  const employee = await getAuthenticatedEmployee();
+  if (!employee) redirect("/auth/login");
 
   const session = await getSessionData(sessionId);
   if (!session) notFound();
 
-  const locale = (localeParam ?? "he") as "en" | "he" | "my";
-
-  const [serviceTypes, translations] = await Promise.all([
+  const [{ locale, translations }, serviceTypes] = await Promise.all([
+    getI18n(),
     getServiceTypes(),
-    getTranslations(locale),
   ]);
 
   const order = Array.isArray(session.order) ? session.order[0] : session.order;
+  if (!order || order.employee_id !== employee.id) notFound();
 
   // If no items yet, synthesise one bag from the order weight for the customer to assign services
   const initialItems =
@@ -90,7 +82,6 @@ export default async function CustomerSessionPage({ params, searchParams }: Rout
       serviceTypes={serviceTypes}
       translations={translations}
       locale={locale}
-      customerDeviceId={customerDeviceId ?? ""}
     />
   );
 }

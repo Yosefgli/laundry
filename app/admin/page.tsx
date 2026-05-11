@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { formatCurrency } from "@/lib/i18n";
+import { getI18n } from "@/lib/i18n/server";
 
 async function getAdminEmployee() {
   const supabase = await createClient();
@@ -42,33 +44,33 @@ export default async function AdminPage() {
   const employee = await getAdminEmployee();
   if (!employee) redirect("/employee");
 
-  const stats = await getStats();
+  const [{ locale, translations: t }, stats] = await Promise.all([getI18n(), getStats()]);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-        <h1 className="font-bold text-lg">Admin — Laundry Ops</h1>
-        <Link href="/employee" className="text-sm text-brand-600 hover:underline">← Employee</Link>
+        <h1 className="font-bold text-lg">{t["admin.title"]}</h1>
+        <Link href="/employee" className="text-sm text-brand-600 hover:underline">← {t["nav.back_employee"]}</Link>
       </header>
 
       <main className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
-          <StatCard label="Orders Today" value={stats.ordersToday} />
-          <StatCard label="Revenue Today" value={`₪${stats.revenueToday.toFixed(2)}`} />
-          <StatCard label="Active Orders" value={stats.activeOrders} />
+          <StatCard label={t["admin.orders_today"]} value={stats.ordersToday} />
+          <StatCard label={t["admin.revenue_today"]} value={formatCurrency(stats.revenueToday, locale)} />
+          <StatCard label={t["admin.active_orders"]} value={stats.activeOrders} />
         </div>
 
         {/* Navigation */}
         <div className="grid grid-cols-2 gap-4">
-          <AdminNavCard href="/admin/orders"    title="Orders"       desc="View and manage all orders" />
-          <AdminNavCard href="/admin/pricing"   title="Pricing"      desc="Manage service pricing rules" />
-          <AdminNavCard href="/admin/services"  title="Services"     desc="Manage laundry service types" />
-          <AdminNavCard href="/admin/workstations" title="Workstations" desc="Configure workstations & printers" />
-          <AdminNavCard href="/admin/employees" title="Employees"    desc="Manage employee accounts" />
-          <AdminNavCard href="/admin/settings"  title="Settings"     desc="System-wide configuration" />
-          <AdminNavCard href="/admin/translations" title="Translations" desc="Manage UI text & languages" />
-          <AdminNavCard href="/admin/audit"     title="Audit Log"    desc="View all operational actions" />
+          <AdminNavCard href="/admin/orders" title={t["admin.orders"]} desc={t["admin.orders_desc"]} />
+          <AdminNavCard href="/admin/pricing" title={t["admin.pricing"]} desc={t["admin.pricing_desc"]} />
+          <AdminNavCard href="/admin/services" title={t["admin.services"]} desc={t["admin.services_desc"]} />
+          <AdminNavCard href="/admin/workstations" title={t["admin.workstations"]} desc={t["admin.workstations_desc"]} />
+          <AdminNavCard href="/admin/employees" title={t["admin.employees"]} desc={t["admin.employees_desc"]} />
+          <AdminNavCard href="/admin/settings" title={t["admin.settings"]} desc={t["admin.settings_desc"]} />
+          <AdminNavCard href="/admin/translations" title={t["admin.translations"]} desc={t["admin.translations_desc"]} />
+          <AdminNavCard href="/admin/audit" title={t["admin.audit"]} desc={t["admin.audit_desc"]} />
         </div>
       </main>
     </div>

@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { Barcode } from "@/components/printing/Barcode";
 import { Button } from "@/components/ui/Button";
 import type { Database } from "@/lib/db/database.types";
+import { localeToIntl, type Locale } from "@/lib/i18n";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"] & {
   order_items?: Array<
@@ -17,10 +18,11 @@ type Order = Database["public"]["Tables"]["orders"]["Row"] & {
 interface BagLabelProps {
   order: Order;
   translations: Record<string, string>;
+  locale: Locale;
   printLabel?: string;
 }
 
-export function BagLabel({ order, translations: t, printLabel = "Print Label" }: BagLabelProps) {
+export function BagLabel({ order, translations: t, locale, printLabel = "Print Label" }: BagLabelProps) {
   const printRef = useRef<HTMLDivElement>(null);
 
   function handlePrint() {
@@ -66,7 +68,7 @@ export function BagLabel({ order, translations: t, printLabel = "Print Label" }:
         {order.customer_notes && (
           <div className="text-xs mt-1 border-t pt-1">{order.customer_notes}</div>
         )}
-        <div className="text-xs mt-1">{new Date(order.created_at).toLocaleDateString()}</div>
+        <div className="text-xs mt-1">{new Date(order.created_at).toLocaleDateString(localeToIntl(locale))}</div>
       </div>
     </>
   );
