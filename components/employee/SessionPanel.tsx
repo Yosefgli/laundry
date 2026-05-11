@@ -21,7 +21,7 @@ interface SessionPanelProps {
 }
 
 const NEXT_STATUS: Record<string, string> = {
-  confirmed: "washing",
+  paid:      "washing",
   washing:   "drying",
   drying:    "ironing",
   ironing:   "ready",

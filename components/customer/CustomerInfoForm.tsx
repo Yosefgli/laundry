@@ -3,36 +3,31 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { PHONE_COUNTRY_CODES, type CustomerInfoInput } from "@/lib/schemas/order";
+import { getPhoneCountryCodeOptions } from "@/lib/phoneCountryCodes";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
+import type { Locale } from "@/lib/i18n";
 
 const CustomerInfoFormSchema = z.object({
   name: z.string().min(1).max(200).trim(),
-  phoneCountryCode: z.string().refine((code) => PHONE_COUNTRY_CODES.includes(code as (typeof PHONE_COUNTRY_CODES)[number])),
+  phoneCountryCode: z.string().refine((code) => PHONE_COUNTRY_CODES.includes(code)),
   phoneNumber: z.string().min(4).max(20).regex(/^[\d\s-]+$/),
   notes: z.string().max(500).optional(),
 });
 
 type CustomerInfoFormInput = z.infer<typeof CustomerInfoFormSchema>;
 
-const PHONE_COUNTRY_OPTIONS = [
-  { code: "+972", label: "Israel" },
-  { code: "+970", label: "Palestine" },
-  { code: "+1", label: "US / Canada" },
-  { code: "+962", label: "Jordan" },
-  { code: "+20", label: "Egypt" },
-  { code: "+95", label: "Myanmar" },
-] as const;
-
 interface CustomerInfoFormProps {
   orderId: string;
   translations: Record<string, string>;
+  locale: Locale;
   onSubmitted: (info: CustomerInfoInput) => void;
 }
 
-export function CustomerInfoForm({ orderId, translations: t, onSubmitted }: CustomerInfoFormProps) {
+export function CustomerInfoForm({ orderId, translations: t, locale, onSubmitted }: CustomerInfoFormProps) {
   const [loading, setLoading] = useState(false);
+  const phoneCountryOptions = getPhoneCountryCodeOptions(locale);
 
   const {
     register,
@@ -94,9 +89,9 @@ export function CustomerInfoForm({ orderId, translations: t, onSubmitted }: Cust
           <option value="" disabled>
             {t["customer.select_phone_country_code"]}
           </option>
-          {PHONE_COUNTRY_OPTIONS.map((option) => (
+          {phoneCountryOptions.map((option) => (
             <option key={option.code} value={option.code}>
-              {option.code} {option.label}
+              {option.label}
             </option>
           ))}
         </select>

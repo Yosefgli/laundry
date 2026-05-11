@@ -34,7 +34,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
       p_to: parsed.data.status,
     });
 
-    if (!isValid) {
+    if (!isValid && !parsed.data.force) {
       return NextResponse.json(
         { data: null, error: `Invalid transition: ${order.status} → ${parsed.data.status}`, currentStatus: order.status },
         { status: 409 }

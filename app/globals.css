@@ -13,7 +13,7 @@
 }
 
 @media print {
-  body > *:not(.print-layout):not(.bag-label-layout) {
+  body:not(.printing-combined-order) > *:not(.print-layout):not(.bag-label-layout):not(.combined-print-layout) {
     display: none !important;
   }
 }

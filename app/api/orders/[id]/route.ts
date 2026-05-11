@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireEmployee } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { CustomerInfoSchema, AddOrderItemSchema, SetOrderWeightSchema } from "@/lib/schemas/order";
+import type { Database } from "@/lib/db/database.types";
+import {
+  CustomerInfoSchema,
+  AddOrderItemSchema,
+  SetOrderWeightSchema,
+  UpdateOrderDetailsSchema,
+} from "@/lib/schemas/order";
 import { calculateItemPrice } from "@/lib/pricing";
 
 type RouteContext = { params: Promise<{ id: string }> };
+type OrderUpdate = Database["public"]["Tables"]["orders"]["Update"];
 
 export async function GET(_req: NextRequest, ctx: RouteContext) {
   try {
@@ -84,6 +91,42 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
         .single();
 
       if (error) return NextResponse.json({ data: null, error: error.message }, { status: 500 });
+      return NextResponse.json({ data, error: null });
+    }
+
+    if (action === "update_details") {
+      const parsed = UpdateOrderDetailsSchema.safeParse(body);
+      if (!parsed.success) {
+        return NextResponse.json({ data: null, error: parsed.error.flatten() }, { status: 400 });
+      }
+
+      const updatePayload: OrderUpdate = {};
+      if (parsed.data.customerName !== undefined) {
+        updatePayload.customer_name = parsed.data.customerName || null;
+      }
+      if (parsed.data.customerPhone !== undefined) {
+        updatePayload.customer_phone = parsed.data.customerPhone || null;
+      }
+      if (parsed.data.customerNotes !== undefined) {
+        updatePayload.customer_notes = parsed.data.customerNotes || null;
+      }
+      if (parsed.data.totalWeightKg !== undefined) {
+        updatePayload.total_weight_kg = parsed.data.totalWeightKg;
+      }
+
+      if (Object.keys(updatePayload).length === 0) {
+        return NextResponse.json({ data: null, error: "No fields to update" }, { status: 400 });
+      }
+
+      const { data, error } = await supabase
+        .from("orders")
+        .update(updatePayload)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) return NextResponse.json({ data: null, error: error.message }, { status: 500 });
+      void employee;
       return NextResponse.json({ data, error: null });
     }
 

@@ -128,6 +128,7 @@ export function CustomerKiosk({
             <CustomerInfoForm
               orderId={order.id}
               translations={t}
+              locale={locale}
               onSubmitted={handleInfoSubmitted}
             />
           </div>
