@@ -23,7 +23,6 @@ const ORDER_STATUSES: OrderStatus[] = [
   "draft",
   "weighed",
   "confirmed",
-  "paid",
   "washing",
   "drying",
   "ironing",

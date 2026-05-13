@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     await supabase
       .from("orders")
-      .update({ payment_status: "paid", status: "paid", paid_at: now })
+      .update({ payment_status: "paid", paid_at: now })
       .eq("id", parsed.data.orderId);
 
     await logAudit(supabase, {

@@ -8,7 +8,7 @@ export const CreateOrderSchema = z.object({
 
 export const UpdateOrderStatusSchema = z.object({
   status: z.enum([
-    "draft", "weighed", "confirmed", "paid",
+    "draft", "weighed", "confirmed",
     "washing", "drying", "ironing", "ready", "delivered",
     "cancelled", "void",
   ]),

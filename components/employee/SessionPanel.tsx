@@ -21,7 +21,7 @@ interface SessionPanelProps {
 }
 
 const NEXT_STATUS: Record<string, string> = {
-  paid:      "washing",
+  confirmed: "washing",
   washing:   "drying",
   drying:    "ironing",
   ironing:   "ready",
@@ -124,13 +124,13 @@ export function SessionPanel({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {order.payment_status === "pending" && order.status === "confirmed" && (
+        {order.payment_status === "pending" && !["cancelled", "void", "delivered"].includes(order.status) && (
           <Button onClick={onMarkPaid} variant="primary" size="lg">
             {t["employee.mark_paid"]}
           </Button>
         )}
 
-        {nextStatus && order.payment_status === "paid" && (
+        {nextStatus && (nextStatus !== "delivered" || order.payment_status === "paid") && (
           <Button onClick={advanceStatus} loading={advancing} variant="primary" size="lg">
             {t["employee.advance_status"]}: {t[`status.${nextStatus}`] ?? nextStatus}
           </Button>
