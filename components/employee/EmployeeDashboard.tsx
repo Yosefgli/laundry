@@ -169,26 +169,37 @@ export function EmployeeDashboard({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f8fefe]">
       {/* Header */}
-      <header className="bg-white border-b px-4 py-3 flex items-center justify-between">
-        <div>
-          <h1 className="font-bold text-gray-900">Laundry Ops</h1>
-          <p className="text-xs text-gray-500">{workstationName} · {employee.full_name}</p>
+      <header className="bg-brand-500 text-white px-4 py-3 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+            <svg width="18" height="18" viewBox="0 0 44 44" fill="none">
+              <rect x="4" y="8" width="36" height="32" rx="4" stroke="white" strokeWidth="2.5" fill="none"/>
+              <rect x="4" y="8" width="36" height="9" rx="4" fill="white" fillOpacity="0.3"/>
+              <circle cx="32" cy="12.5" r="2" fill="white"/>
+              <circle cx="37" cy="12.5" r="2" fill="white"/>
+              <circle cx="22" cy="28" r="10" stroke="white" strokeWidth="2.5" fill="none"/>
+            </svg>
+          </div>
+          <div>
+            <h1 className="font-black text-base leading-none">Laundry <span className="font-light">by Chabad</span></h1>
+            <p className="text-xs text-white/70 mt-0.5">{workstationName} · {employee.full_name}</p>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setView("scan")}>{t["employee.scan_barcode"]}</Button>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 hover:text-white" onClick={() => setView("scan")}>{t["employee.scan_barcode"]}</Button>
           {employee.role === "admin" && (
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/admin"}>{t["nav.admin"]}</Button>
+            <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 hover:text-white" onClick={() => window.location.href = "/admin"}>{t["nav.admin"]}</Button>
           )}
-          <Button variant="ghost" size="sm" onClick={handleLogout}>{t["nav.logout"]}</Button>
+          <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 hover:text-white" onClick={handleLogout}>{t["nav.logout"]}</Button>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto p-4 space-y-4">
         {/* Navigation tabs */}
         {view !== "active_session" && view !== "order_detail" && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 pt-1">
             <Button
               variant={view === "dashboard" ? "primary" : "secondary"}
               size="sm"
@@ -219,19 +230,19 @@ export function EmployeeDashboard({
               <Button size="xl" className="w-full" onClick={() => setView("new_order")}>
                 + {t["employee.new_order"]}
               </Button>
-              <div className="bg-white rounded-xl border">
-              <div className="p-3 border-b font-semibold text-sm text-gray-700">{t["employee.active_orders"]}</div>
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100 font-semibold text-sm text-gray-700 bg-gray-50/50">{t["employee.active_orders"]}</div>
               {recentOrders.length === 0 ? (
-                <p className="p-4 text-sm text-gray-500">{t["employee.no_active_orders"]}</p>
+                <p className="p-6 text-sm text-gray-400 text-center">{t["employee.no_active_orders"]}</p>
               ) : (
-                <ul className="divide-y">
+                <ul className="divide-y divide-gray-50">
                   {recentOrders.map((order) => (
-                    <li key={order.id} className="p-3 flex items-center justify-between gap-2">
+                    <li key={order.id} className="px-4 py-3 flex items-center justify-between gap-2 hover:bg-brand-50/30 transition-colors">
                       <div>
-                        <div className="font-semibold text-sm">{order.order_number}</div>
-                        <div className="text-xs text-gray-500">{order.customer_name ?? "—"}</div>
+                        <div className="font-bold text-sm text-gray-900">{order.order_number}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">{order.customer_name ?? "—"}</div>
                       </div>
-                      <div className="flex flex-wrap justify-end gap-1">
+                      <div className="flex flex-wrap justify-end gap-1.5">
                         <div className="flex gap-1">
                           <OrderStatusBadge
                             status={order.status as Parameters<typeof OrderStatusBadge>[0]["status"]}
@@ -256,8 +267,8 @@ export function EmployeeDashboard({
 
         {/* New Order */}
         {view === "new_order" && (
-          <div className="bg-white rounded-xl border p-4 space-y-3">
-            <h2 className="font-semibold">{t["employee.new_order"]}</h2>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+            <h2 className="font-bold text-gray-900">{t["employee.new_order"]}</h2>
             <NewOrderForm
               translations={t}
               workstationId={workstationId}
@@ -327,12 +338,12 @@ export function EmployeeDashboard({
               autoStartCamera
             />
             {scanError && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">
                 {scanError}
               </div>
             )}
             {scanResult && (
-              <div className="bg-white rounded-xl border p-4 space-y-3">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="font-bold">{scanResult.order_number}</span>
                   <OrderStatusBadge
