@@ -1,13 +1,12 @@
 import { cn } from "@/lib/utils";
 
-type OrderStatus = "draft" | "weighed" | "confirmed" | "paid" | "washing" | "drying" | "ironing" | "ready" | "delivered" | "cancelled" | "void";
+type OrderStatus = "draft" | "weighed" | "confirmed" | "washing" | "drying" | "ironing" | "ready" | "delivered" | "cancelled" | "void";
 type PaymentStatus = "pending" | "paid" | "refunded";
 
 const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   draft:     "bg-gray-100 text-gray-700",
   weighed:   "bg-blue-100 text-blue-700",
   confirmed: "bg-indigo-100 text-indigo-700",
-  paid:      "bg-purple-100 text-purple-700",
   washing:   "bg-cyan-100 text-cyan-700",
   drying:    "bg-sky-100 text-sky-700",
   ironing:   "bg-orange-100 text-orange-700",

@@ -41,6 +41,13 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
       );
     }
 
+    if (parsed.data.status === "delivered" && order.payment_status !== "paid") {
+      return NextResponse.json(
+        { data: null, error: "Cannot deliver an unpaid order", currentStatus: order.status },
+        { status: 409 }
+      );
+    }
+
     const updatePayload = parsed.data.status === "delivered"
       ? {
           status: parsed.data.status,

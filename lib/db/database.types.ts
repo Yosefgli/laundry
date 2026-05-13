@@ -98,7 +98,7 @@ export type Database = {
           customer_name: string | null;
           customer_phone: string | null;
           customer_notes: string | null;
-          status: "draft" | "weighed" | "confirmed" | "paid" | "washing" | "drying" | "ironing" | "ready" | "delivered" | "cancelled" | "void";
+          status: "draft" | "weighed" | "confirmed" | "washing" | "drying" | "ironing" | "ready" | "delivered" | "cancelled" | "void";
           payment_status: "pending" | "paid" | "refunded";
           total_weight_kg: number;
           subtotal: number;
@@ -368,7 +368,7 @@ export type Database = {
       generate_order_number: { Args: Record<string, never>; Returns: string };
     };
     Enums: {
-      order_status: "draft" | "weighed" | "confirmed" | "paid" | "washing" | "drying" | "ironing" | "ready" | "delivered" | "cancelled" | "void";
+      order_status: "draft" | "weighed" | "confirmed" | "washing" | "drying" | "ironing" | "ready" | "delivered" | "cancelled" | "void";
       payment_status: "pending" | "paid" | "refunded";
       session_status: "active" | "completed" | "cancelled" | "expired";
       user_role: "admin" | "employee";

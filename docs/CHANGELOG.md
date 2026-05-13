@@ -9,3 +9,4 @@
 - 2026-05-11: Stabilize realtime handoff and hide employee degraded-mode banner.
 
 - Full UI rebrand: teal palette (#17AEAD) matching Laundry by Chabad logo, rounded-2xl/3xl corners, branded SVG logo in all headers, welcoming customer kiosk and login screens
+- Separated process status from payment status: removed 'paid' from order_status enum, confirmed→washing directly, delivery blocked server-side until payment_status=paid
