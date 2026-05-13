@@ -46,7 +46,24 @@ interface EmployeeDashboardProps {
   recentOrders: RecentOrder[];
 }
 
-type View = "dashboard" | "new_order" | "active_session" | "scan" | "order_detail";
+type OrderStatus = "draft" | "weighed" | "confirmed" | "washing" | "drying" | "ironing" | "ready" | "delivered" | "cancelled" | "void";
+
+const WORK_BOARD_STATUSES: OrderStatus[] = ["draft", "weighed", "confirmed", "washing", "drying", "ironing", "ready"];
+
+const STATUS_COLUMN_COLORS: Record<OrderStatus, { bg: string; border: string; badge: string; count: string }> = {
+  draft:     { bg: "bg-gray-50",    border: "border-gray-200",   badge: "bg-gray-100 text-gray-700",    count: "bg-gray-200 text-gray-700" },
+  weighed:   { bg: "bg-blue-50",    border: "border-blue-200",   badge: "bg-blue-100 text-blue-700",    count: "bg-blue-200 text-blue-700" },
+  confirmed: { bg: "bg-indigo-50",  border: "border-indigo-200", badge: "bg-indigo-100 text-indigo-700", count: "bg-indigo-200 text-indigo-700" },
+  washing:   { bg: "bg-cyan-50",    border: "border-cyan-200",   badge: "bg-cyan-100 text-cyan-700",    count: "bg-cyan-200 text-cyan-700" },
+  drying:    { bg: "bg-sky-50",     border: "border-sky-200",    badge: "bg-sky-100 text-sky-700",      count: "bg-sky-200 text-sky-700" },
+  ironing:   { bg: "bg-orange-50",  border: "border-orange-200", badge: "bg-orange-100 text-orange-700", count: "bg-orange-200 text-orange-700" },
+  ready:     { bg: "bg-green-50",   border: "border-green-200",  badge: "bg-green-100 text-green-700",  count: "bg-green-200 text-green-800" },
+  delivered: { bg: "bg-green-50",   border: "border-green-200",  badge: "bg-green-200 text-green-800",  count: "bg-green-300 text-green-900" },
+  cancelled: { bg: "bg-red-50",     border: "border-red-200",    badge: "bg-red-100 text-red-700",      count: "bg-red-200 text-red-700" },
+  void:      { bg: "bg-gray-50",    border: "border-gray-200",   badge: "bg-gray-200 text-gray-500",    count: "bg-gray-300 text-gray-600" },
+};
+
+type View = "dashboard" | "work_board" | "new_order" | "active_session" | "scan" | "order_detail";
 
 function toArray<T>(value: T | T[] | null | undefined): T[] {
   if (!value) return [];
@@ -199,13 +216,20 @@ export function EmployeeDashboard({
       <main className="max-w-2xl mx-auto p-4 space-y-4">
         {/* Navigation tabs */}
         {view !== "active_session" && view !== "order_detail" && (
-          <div className="flex gap-2 pt-1">
+          <div className="flex gap-2 pt-1 flex-wrap">
             <Button
               variant={view === "dashboard" ? "primary" : "secondary"}
               size="sm"
               onClick={() => setView("dashboard")}
             >
               {t["employee.dashboard"]}
+            </Button>
+            <Button
+              variant={view === "work_board" ? "primary" : "secondary"}
+              size="sm"
+              onClick={() => setView("work_board")}
+            >
+              {t["employee.work_board"]}
             </Button>
             <Button
               variant={view === "new_order" ? "primary" : "secondary"}
@@ -265,6 +289,61 @@ export function EmployeeDashboard({
           </div>
         )}
 
+        {/* Work Board */}
+        {view === "work_board" && (() => {
+          const byStatus = WORK_BOARD_STATUSES.reduce<Record<string, RecentOrder[]>>((acc, s) => {
+            acc[s] = recentOrders.filter((o) => o.status === s);
+            return acc;
+          }, {});
+          return (
+            <div className="space-y-3">
+              {WORK_BOARD_STATUSES.map((status) => {
+                const orders = byStatus[status];
+                const colors = STATUS_COLUMN_COLORS[status];
+                return (
+                  <div key={status} className={`rounded-2xl border ${colors.border} ${colors.bg} overflow-hidden`}>
+                    <div className={`px-4 py-2.5 flex items-center gap-2 border-b ${colors.border}`}>
+                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${colors.badge}`}>
+                        {t[`status.${status}`] ?? status}
+                      </span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full tabular-nums ${colors.count}`}>
+                        {orders.length}
+                      </span>
+                    </div>
+                    {orders.length === 0 ? (
+                      <p className="px-4 py-3 text-xs text-gray-400">{t["employee.work_board_empty"]}</p>
+                    ) : (
+                      <ul className="divide-y divide-white/60">
+                        {orders.map((order) => (
+                          <li
+                            key={order.id}
+                            className="px-4 py-2.5 flex items-center justify-between gap-2 hover:bg-white/50 transition-colors cursor-pointer"
+                            onClick={() => openOrder(order.id)}
+                          >
+                            <div>
+                              <span className="font-bold text-sm text-gray-900">{order.order_number}</span>
+                              {order.customer_name && (
+                                <span className="text-xs text-gray-500 ms-2">{order.customer_name}</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <PaymentStatusBadge
+                                status={order.payment_status as Parameters<typeof PaymentStatusBadge>[0]["status"]}
+                                label={t[`payment.${order.payment_status}`] ?? order.payment_status}
+                              />
+                              <span className="text-xs text-gray-400">{formatCurrency(Number(order.total_amount), locale)}</span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
         {/* New Order */}
         {view === "new_order" && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
@@ -296,9 +375,7 @@ export function EmployeeDashboard({
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <CombinedOrderPrint
                   order={activeOrder}
-                  locale={locale}
                   translations={t}
-                  shopName="Laundry Pro"
                   printLabel={t["print.print_all"]}
                   className="w-full sm:w-auto"
                 />

@@ -87,7 +87,9 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "service.express": "Express (24h)",
     "service.delicate": "Delicate Laundry",
 
-    "employee.dashboard": "Dashboard",
+    "employee.dashboard": "Orders Board",
+    "employee.work_board": "Work Board",
+    "employee.work_board_empty": "No orders",
     "employee.new_order": "New Order",
     "employee.weight_kg": "Weight (kg)",
     "employee.transfer_customer": "Transfer to Customer",
@@ -269,7 +271,9 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "service.express": "אקספרס (24 שעות)",
     "service.delicate": "עדין",
 
-    "employee.dashboard": "לוח עבודה",
+    "employee.dashboard": "לוח הזמנות",
+    "employee.work_board": "לוח עבודה",
+    "employee.work_board_empty": "אין הזמנות",
     "employee.new_order": "הזמנה חדשה",
     "employee.weight_kg": "משקל (ק\"ג)",
     "employee.transfer_customer": "העבר ללקוח",
@@ -451,7 +455,9 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "service.express": "အမြန် (၂၄ နာရီ)",
     "service.delicate": "နူးညံ့သော အဝတ်",
 
-    "employee.dashboard": "အလုပ်မျက်နှာပြင်",
+    "employee.dashboard": "အမှာစာရင်း",
+    "employee.work_board": "အလုပ်မျက်နှာပြင်",
+    "employee.work_board_empty": "အမှာမရှိပါ",
     "employee.new_order": "အမှာတင်မည်",
     "employee.weight_kg": "အလေးချိန် (ကီလို)",
     "employee.transfer_customer": "ဖောက်သည်ထံ လွှဲပြောင်းမည်",

@@ -163,9 +163,7 @@ export function OrderEditor({
         </Button>
         <CombinedOrderPrint
           order={order}
-          locale={locale}
           translations={t}
-          shopName="Laundry Pro"
           printLabel={t["print.print_all"]}
           className="w-full sm:w-auto"
         />
