@@ -375,9 +375,7 @@ export function EmployeeDashboard({
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <CombinedOrderPrint
                   order={activeOrder}
-                  locale={locale}
                   translations={t}
-                  shopName="Laundry Pro"
                   printLabel={t["print.print_all"]}
                   className="w-full sm:w-auto"
                 />

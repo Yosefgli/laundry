@@ -1,75 +1,45 @@
 "use client";
-import { useRef } from "react";
-import { Barcode } from "@/components/printing/Barcode";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import type { Database } from "@/lib/db/database.types";
-import { localeToIntl, type Locale } from "@/lib/i18n";
 
-type Order = Database["public"]["Tables"]["orders"]["Row"] & {
-  order_items?: Array<
-    Database["public"]["Tables"]["order_items"]["Row"] & {
-      order_item_services?: Array<{
-        service_type?: { code: string } | null;
-      }>;
-    }
-  >;
-};
+type Order = Database["public"]["Tables"]["orders"]["Row"];
 
 interface BagLabelProps {
   order: Order;
   translations: Record<string, string>;
-  locale: Locale;
   printLabel?: string;
 }
 
-export function BagLabel({ order, translations: t, locale, printLabel = "Print Label" }: BagLabelProps) {
-  const printRef = useRef<HTMLDivElement>(null);
+export function BagLabel({ order, translations: t, printLabel }: BagLabelProps) {
+  const [status, setStatus] = useState<"idle" | "printing" | "error">("idle");
 
-  function handlePrint() {
-    if (!printRef.current) return;
-    window.print();
+  async function handlePrint() {
+    setStatus("printing");
+    try {
+      const res = await fetch("/api/print", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, type: "label" }),
+      });
+      setStatus(res.ok ? "idle" : "error");
+    } catch {
+      setStatus("error");
+    }
   }
 
-  const servicesCodes = order.order_items
-    ?.flatMap((i) => i.order_item_services?.map((s) => s.service_type?.code) ?? [])
-    .filter(Boolean);
-  const uniqueServices = [...new Set(servicesCodes)];
-
   return (
-    <>
-      <Button variant="secondary" size="sm" onClick={handlePrint}>
-        {printLabel}
-      </Button>
-
-      <div ref={printRef} className="bag-label-layout hidden print:block">
-        <style>{`
-          @media print {
-            body > *:not(.bag-label-layout) { display: none !important; }
-            .bag-label-layout { display: block !important; }
-          }
-          .bag-label-layout {
-            width: 80mm;
-            font-family: monospace;
-            font-size: 12pt;
-            font-weight: bold;
-            color: #000;
-            text-align: center;
-          }
-        `}</style>
-
-        <div className="text-2xl font-black mb-2">{order.order_number}</div>
-        <div className="flex justify-center mb-2">
-          <Barcode value={order.id} width={220} height={80} />
-        </div>
-        <div className="text-sm font-bold">{order.customer_name ?? "—"}</div>
-        <div className="text-xs mt-1">
-          {uniqueServices.map((s) => t[`service.${s}`] ?? s).join(" · ")}
-        </div>
-        {order.customer_notes && (
-          <div className="text-xs mt-1 border-t pt-1">{order.customer_notes}</div>
-        )}
-        <div className="text-xs mt-1">{new Date(order.created_at).toLocaleDateString(localeToIntl(locale))}</div>
-      </div>
-    </>
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={handlePrint}
+      disabled={status === "printing"}
+    >
+      {status === "printing"
+        ? "..."
+        : status === "error"
+        ? "שגיאת הדפסה"
+        : (printLabel ?? t["print.print_label"])}
+    </Button>
   );
 }
