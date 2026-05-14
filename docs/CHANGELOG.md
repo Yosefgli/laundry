@@ -14,3 +14,4 @@
 - QR code (bwip-js qrcode) replaces Code128 barcode; print buttons POST HTML+QR to /api/print which resolves the printer URL from workstations.printer_http_url for the order's workstation (falls back to PRINT_SERVER_URL env var) — no global printer address, each workstation prints to its own device
 - fix: POST /api/admin/printers now accepts empty ip_address (create-then-edit pattern); PrinterManager validates IP client-side before PATCH and shows inline Hebrew error
 fix: /api/print — catch network errors from ePOS fetch separately; return Hebrew error with printer IP and reason; parse ePOS SOAP fault body (HTTP 200 with error); log actual exception in outer catch
+- 2026-05-14: PrinterManager UI — updated IP field placeholder and hint text to show ip:port format is supported (e.g. 192.168.1.100:8008 for non-80 ePOS-Print port)
