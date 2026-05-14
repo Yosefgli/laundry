@@ -11,5 +11,6 @@
 - Full UI rebrand: teal palette (#17AEAD) matching Laundry by Chabad logo, rounded-2xl/3xl corners, branded SVG logo in all headers, welcoming customer kiosk and login screens
 - Separated process status from payment status: removed 'paid' from order_status enum, confirmed→washing directly, delivery blocked server-side until payment_status=paid
 - Split employee dashboard into 'לוח הזמנות' (flat orders list) and 'לוח עבודה' (status-grouped work board)
+- Printers table + printer_employees join (many-to-many); /api/print resolves printer from logged-in employee and switches to Epson ePOS-Print XML protocol (SOAP to /cgi-bin/epos/service.cgi) replacing broken HTML POST; Admin → מדפסות page for managing printers and assigning employees
 
 - QR code (bwip-js qrcode) replaces Code128 barcode; print buttons POST HTML+QR to /api/print which resolves the printer URL from workstations.printer_http_url for the order's workstation (falls back to PRINT_SERVER_URL env var) — no global printer address, each workstation prints to its own device

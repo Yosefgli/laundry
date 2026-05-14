@@ -27,6 +27,46 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["employees"]["Insert"]>;
         Relationships: [];
       };
+      printers: {
+        Row: {
+          id: string;
+          name: string;
+          ip_address: string;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Omit<Database["public"]["Tables"]["printers"]["Row"], "id" | "created_at" | "updated_at">> & { id?: string };
+        Update: Partial<Database["public"]["Tables"]["printers"]["Insert"]>;
+        Relationships: [];
+      };
+      printer_employees: {
+        Row: {
+          printer_id: string;
+          employee_id: string;
+        };
+        Insert: {
+          printer_id: string;
+          employee_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["printer_employees"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "printer_employees_printer_id_fk";
+            columns: ["printer_id"];
+            isOneToOne: false;
+            referencedRelation: "printers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "printer_employees_employee_id_fk";
+            columns: ["employee_id"];
+            isOneToOne: false;
+            referencedRelation: "employees";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       workstations: {
         Row: {
           id: string;
