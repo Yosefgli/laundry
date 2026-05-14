@@ -63,18 +63,42 @@ export async function POST(request: NextRequest) {
       const eposUrl = `http://${printerIp}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
       const xml = buildEposXml({ type, order, t, locale, shopName, shopAddress, taxId });
 
-      const printRes = await fetch(eposUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "text/xml; charset=utf-8",
-          SOAPAction: '""',
-        },
-        body: xml,
-      });
+      let printRes: Response;
+      try {
+        printRes = await fetch(eposUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/xml; charset=utf-8",
+            SOAPAction: '""',
+          },
+          body: xml,
+        });
+      } catch (networkErr) {
+        const msg = networkErr instanceof Error ? networkErr.message : String(networkErr);
+        console.error("[print] Network error reaching printer at", printerIp, "—", msg);
+        return NextResponse.json(
+          { error: `לא ניתן להגיע למדפסת בכתובת ${printerIp}. בדוק שהמדפסת דולקת ומחוברת לרשת. (${msg})` },
+          { status: 502 }
+        );
+      }
+
+      const responseText = await printRes.text();
 
       if (!printRes.ok) {
+        console.error("[print] Printer HTTP error", printRes.status, responseText);
         return NextResponse.json(
-          { error: `Printer responded ${printRes.status}. Check IP address and that ePOS-Print is enabled on the printer.` },
+          { error: `המדפסת החזירה שגיאה ${printRes.status}. בדוק כתובת IP ושה-ePOS-Print מופעל. (${responseText.slice(0, 200)})` },
+          { status: 502 }
+        );
+      }
+
+      // ePOS can return HTTP 200 with a SOAP fault body — check for it
+      if (responseText.includes("SchemaError") || responseText.includes("DeviceNotFound") || responseText.includes("faultstring")) {
+        const match = responseText.match(/<faultstring>([^<]*)<\/faultstring>/);
+        const detail = match?.[1] ?? responseText.slice(0, 300);
+        console.error("[print] ePOS SOAP fault:", detail);
+        return NextResponse.json(
+          { error: `שגיאת ePOS מהמדפסת: ${detail}` },
           { status: 502 }
         );
       }
@@ -133,8 +157,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (err) {
     const isAuth = err instanceof Error && err.message === "Unauthorized";
+    if (!isAuth) console.error("[print] Unhandled error:", err);
+    const detail = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { error: isAuth ? "Unauthorized" : "Internal error" },
+      { error: isAuth ? "Unauthorized" : `Internal error: ${detail}` },
       { status: isAuth ? 401 : 500 }
     );
   }

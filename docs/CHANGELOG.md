@@ -13,3 +13,4 @@
 - Printers table + printer_employees join (many-to-many); /api/print resolves printer from logged-in employee and switches to Epson ePOS-Print XML protocol (SOAP to /cgi-bin/epos/service.cgi) replacing broken HTML POST; Admin → מדפסות page for managing printers and assigning employees
 - QR code (bwip-js qrcode) replaces Code128 barcode; print buttons POST HTML+QR to /api/print which resolves the printer URL from workstations.printer_http_url for the order's workstation (falls back to PRINT_SERVER_URL env var) — no global printer address, each workstation prints to its own device
 - fix: POST /api/admin/printers now accepts empty ip_address (create-then-edit pattern); PrinterManager validates IP client-side before PATCH and shows inline Hebrew error
+fix: /api/print — catch network errors from ePOS fetch separately; return Hebrew error with printer IP and reason; parse ePOS SOAP fault body (HTTP 200 with error); log actual exception in outer catch
