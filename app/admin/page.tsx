@@ -78,6 +78,7 @@ export default async function AdminPage() {
           <AdminNavCard href="/admin/pricing" title={t["admin.pricing"]} desc={t["admin.pricing_desc"]} />
           <AdminNavCard href="/admin/services" title={t["admin.services"]} desc={t["admin.services_desc"]} />
           <AdminNavCard href="/admin/workstations" title={t["admin.workstations"]} desc={t["admin.workstations_desc"]} />
+          <AdminNavCard href="/admin/printers" title="מדפסות" desc="הגדר מדפסות ושייך לעובדים" />
           <AdminNavCard href="/admin/employees" title={t["admin.employees"]} desc={t["admin.employees_desc"]} />
           <AdminNavCard href="/admin/settings" title={t["admin.settings"]} desc={t["admin.settings_desc"]} />
           <AdminNavCard href="/admin/translations" title={t["admin.translations"]} desc={t["admin.translations_desc"]} />

@@ -6,9 +6,11 @@ import { requireEmployee } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n/server";
 import { formatCurrency, formatWeight, localeToIntl } from "@/lib/i18n";
 
+const EPOS_WIDTH = 42; // characters at default font on 80mm paper
+
 export async function POST(request: NextRequest) {
   try {
-    await requireEmployee();
+    const employee = await requireEmployee();
 
     const { orderId, type = "combined" } = (await request.json()) as {
       orderId: string;
@@ -16,29 +18,71 @@ export async function POST(request: NextRequest) {
     };
 
     const supabase = createServiceClient();
-    const { data: order, error } = await supabase
-      .from("orders")
-      .select(
-        `*, workstation:workstations(printer_http_url), order_items(*, order_item_services(*, service_type:service_types(id, code)))`
-      )
-      .eq("id", orderId)
-      .single();
 
-    if (error || !order) {
+    const [orderResult, printerResult] = await Promise.all([
+      supabase
+        .from("orders")
+        .select(
+          `*, workstation:workstations(printer_http_url), order_items(*, order_item_services(*, service_type:service_types(id, code)))`
+        )
+        .eq("id", orderId)
+        .single(),
+      supabase
+        .from("printer_employees")
+        .select("printers(ip_address)")
+        .eq("employee_id", employee.id)
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    if (orderResult.error || !orderResult.data) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
+    const order = orderResult.data;
     const workstation = order.workstation as { printer_http_url: string | null } | null;
-    const printUrl = workstation?.printer_http_url ?? process.env.PRINT_SERVER_URL;
-    if (!printUrl) {
+
+    // Resolve printer: employee-assigned printer (ePOS) → workstation URL (legacy HTML) → env fallback
+    const printerIp = (printerResult.data?.printers as { ip_address: string } | null)?.ip_address ?? null;
+    const legacyPrintUrl = workstation?.printer_http_url ?? process.env.PRINT_SERVER_URL ?? null;
+
+    if (!printerIp && !legacyPrintUrl) {
       return NextResponse.json(
-        { error: "No printer configured for this workstation" },
+        { error: "No printer configured. Assign a printer to this employee in Admin → Printers." },
         { status: 422 }
       );
     }
 
     const { locale, translations: t } = await getI18n();
+    const shopName = process.env.NEXT_PUBLIC_SHOP_NAME ?? "";
+    const shopAddress = process.env.NEXT_PUBLIC_SHOP_ADDRESS ?? "";
+    const taxId = process.env.NEXT_PUBLIC_TAX_ID ?? "";
 
+    if (printerIp) {
+      // ─── ePOS-Print path (EPSON network printers) ────────────────────────
+      const eposUrl = `http://${printerIp}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
+      const xml = buildEposXml({ type, order, t, locale, shopName, shopAddress, taxId });
+
+      const printRes = await fetch(eposUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/xml; charset=utf-8",
+          SOAPAction: '""',
+        },
+        body: xml,
+      });
+
+      if (!printRes.ok) {
+        return NextResponse.json(
+          { error: `Printer responded ${printRes.status}. Check IP address and that ePOS-Print is enabled on the printer.` },
+          { status: 502 }
+        );
+      }
+
+      return NextResponse.json({ success: true });
+    }
+
+    // ─── Legacy HTML POST path (print server) ────────────────────────────────
     const qrPng = await bwipjs.toBuffer({
       bcid: "qrcode",
       text: order.id,
@@ -46,10 +90,6 @@ export async function POST(request: NextRequest) {
       backgroundcolor: "ffffff",
     });
     const qrDataUrl = `data:image/png;base64,${qrPng.toString("base64")}`;
-
-    const shopName = process.env.NEXT_PUBLIC_SHOP_NAME ?? "";
-    const shopAddress = process.env.NEXT_PUBLIC_SHOP_ADDRESS ?? "";
-    const taxId = process.env.NEXT_PUBLIC_TAX_ID ?? "";
 
     const receiptHtml =
       type === "receipt" || type === "combined"
@@ -77,7 +117,7 @@ export async function POST(request: NextRequest) {
 <body>${receiptHtml}${labelHtml}</body>
 </html>`;
 
-    const printRes = await fetch(printUrl, {
+    const printRes = await fetch(legacyPrintUrl!, {
       method: "POST",
       headers: { "Content-Type": "text/html; charset=utf-8" },
       body: html,
@@ -100,6 +140,142 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// ─── ePOS-Print XML builder ───────────────────────────────────────────────────
+
+function esc(s: string): string {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function padRow(left: string, right: string, width = EPOS_WIDTH): string {
+  const spaces = Math.max(1, width - left.length - right.length);
+  return left + " ".repeat(spaces) + right;
+}
+
+function buildEposXml({
+  type,
+  order,
+  t,
+  locale,
+  shopName,
+  shopAddress,
+  taxId,
+}: {
+  type: "receipt" | "label" | "combined";
+  order: Record<string, unknown>;
+  t: Record<string, string>;
+  locale: string;
+  shopName: string;
+  shopAddress: string;
+  taxId: string;
+}): string {
+  const parts: string[] = [];
+
+  if (type === "receipt" || type === "combined") {
+    parts.push(buildEposReceipt({ order, t, locale, shopName, shopAddress, taxId }));
+  }
+  if (type === "label" || type === "combined") {
+    parts.push(buildEposLabel({ order, t, locale }));
+  }
+
+  return `<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">${parts.join("")}</epos-print></s:Body></s:Envelope>`;
+}
+
+function buildEposReceipt({
+  order,
+  t,
+  locale,
+  shopName,
+  shopAddress,
+  taxId,
+}: {
+  order: Record<string, unknown>;
+  t: Record<string, string>;
+  locale: string;
+  shopName: string;
+  shopAddress: string;
+  taxId: string;
+}): string {
+  const loc = locale as "en" | "he" | "my";
+  const SEP = "-".repeat(EPOS_WIDTH) + "\n";
+  const items = (order.order_items as Array<Record<string, unknown>>) ?? [];
+
+  const itemLines = items
+    .map((item, idx) => {
+      const services = (item.order_item_services as Array<Record<string, unknown>>) ?? [];
+      const serviceLines = services
+        .map((s) => {
+          const code = (s.service_type as Record<string, string> | null)?.code ?? "";
+          return padRow(`  ${esc(t[`service.${code}`] ?? code)}`, esc(formatCurrency(Number(s.line_total), loc))) + "\n";
+        })
+        .join("");
+      return (
+        `${esc(t["customer.bag"])} ${idx + 1} — ${esc(formatWeight(Number(item.weight_kg), loc, t["unit.kg"]))}\n` +
+        serviceLines
+      );
+    })
+    .join("");
+
+  return [
+    `<text align="center" bold="true" dw="true" dh="true">${esc(shopName)}\n</text>`,
+    shopAddress ? `<text align="center" bold="false" dw="false" dh="false">${esc(shopAddress)}\n</text>` : "",
+    taxId ? `<text align="center">${esc(t["print.receipt_title"])} | ${esc(taxId)}\n</text>` : "",
+    `<text align="left" bold="false">${SEP}</text>`,
+    `<text>${esc(padRow(t["print.order_number"] ?? "Order", String(order.order_number ?? "")))}\n</text>`,
+    `<text>${esc(padRow(t["print.weight"] ?? "Weight", formatWeight(Number(order.total_weight_kg), loc, t["unit.kg"])))}\n</text>`,
+    `<text>${SEP}</text>`,
+    `<text>${esc(itemLines)}</text>`,
+    `<text>${SEP}</text>`,
+    `<text>${esc(padRow(t["print.subtotal"] ?? "Subtotal", formatCurrency(Number(order.subtotal), loc)))}\n</text>`,
+    `<text>${esc(padRow(t["print.tax"] ?? "Tax", formatCurrency(Number(order.tax_amount), loc)))}\n</text>`,
+    `<text bold="true">${esc(padRow(t["print.total"] ?? "Total", formatCurrency(Number(order.total_amount), loc)))}\n</text>`,
+    `<text bold="false">${esc(padRow(t["print.payment_status"] ?? "Payment", t[`payment.${order.payment_status}`] ?? String(order.payment_status)))}\n</text>`,
+    `<text>${SEP}</text>`,
+    `<symbol type="qrcode" level="0" width="5" height="0">${esc(String(order.id))}</symbol>`,
+    `<text align="center">${esc((String(order.id)).slice(0, 8).toUpperCase())}\n</text>`,
+    `<feed line="3"/>`,
+    `<cut type="feed"/>`,
+  ].join("");
+}
+
+function buildEposLabel({
+  order,
+  t,
+  locale,
+}: {
+  order: Record<string, unknown>;
+  t: Record<string, string>;
+  locale: string;
+}): string {
+  const loc = locale as "en" | "he" | "my";
+  const items = (order.order_items as Array<Record<string, unknown>>) ?? [];
+  const serviceCodes = items
+    .flatMap((i) =>
+      ((i.order_item_services as Array<Record<string, unknown>>) ?? []).map(
+        (s) => (s.service_type as Record<string, string> | null)?.code
+      )
+    )
+    .filter(Boolean) as string[];
+  const uniqueServices = [...new Set(serviceCodes)];
+  const servicesLabel = uniqueServices.map((s) => t[`service.${s}`] ?? s).join(" · ");
+  const date = new Date(order.created_at as string).toLocaleDateString(localeToIntl(loc));
+
+  return [
+    `<text align="center" bold="true" dw="true" dh="true">${esc(String(order.order_number ?? ""))}\n</text>`,
+    `<symbol type="qrcode" level="0" width="6" height="0">${esc(String(order.id))}</symbol>`,
+    order.customer_name ? `<text align="center" bold="false" dw="false" dh="false">${esc(String(order.customer_name))}\n</text>` : "",
+    servicesLabel ? `<text align="center">${esc(servicesLabel)}\n</text>` : "",
+    order.customer_notes ? `<text align="center">${esc(String(order.customer_notes))}\n</text>` : "",
+    `<text align="center">${esc(date)}\n</text>`,
+    `<feed line="3"/>`,
+    `<cut type="feed"/>`,
+  ].join("");
+}
+
+// ─── Legacy HTML builders (for non-ePOS print servers) ───────────────────────
+
 function buildReceiptHtml({
   order,
   t,
@@ -117,19 +293,18 @@ function buildReceiptHtml({
   taxId: string;
   qrDataUrl: string;
 }): string {
+  const loc = locale as "en" | "he" | "my";
   const items = (order.order_items as Array<Record<string, unknown>>) ?? [];
   const itemsHtml = items
     .map((item, idx) => {
-      const services = (
-        item.order_item_services as Array<Record<string, unknown>>
-      ) ?? [];
+      const services = (item.order_item_services as Array<Record<string, unknown>>) ?? [];
       const servicesHtml = services
         .map((s) => {
           const code = (s.service_type as Record<string, string> | null)?.code ?? "";
-          return `<div class="row xs"><span>${t[`service.${code}`] ?? code}</span><span>${formatCurrency(Number(s.line_total), locale as "en" | "he" | "my")}</span></div>`;
+          return `<div class="row xs"><span>${t[`service.${code}`] ?? code}</span><span>${formatCurrency(Number(s.line_total), loc)}</span></div>`;
         })
         .join("");
-      return `<div style="margin-bottom:3px"><div class="bold">${t["customer.bag"]} ${idx + 1} — ${formatWeight(Number(item.weight_kg), locale as "en" | "he" | "my", t["unit.kg"])}</div>${servicesHtml}</div>`;
+      return `<div style="margin-bottom:3px"><div class="bold">${t["customer.bag"]} ${idx + 1} — ${formatWeight(Number(item.weight_kg), loc, t["unit.kg"])}</div>${servicesHtml}</div>`;
     })
     .join("");
 
@@ -139,13 +314,13 @@ function buildReceiptHtml({
   ${taxId ? `<div class="center xs">${t["print.receipt_title"]} | ${taxId}</div>` : ""}
   <hr/>
   <div class="row"><span>${t["print.order_number"]}</span><span class="bold">${order.order_number}</span></div>
-  <div class="row"><span>${t["print.weight"]}</span><span>${formatWeight(Number(order.total_weight_kg), locale as "en" | "he" | "my", t["unit.kg"])}</span></div>
+  <div class="row"><span>${t["print.weight"]}</span><span>${formatWeight(Number(order.total_weight_kg), loc, t["unit.kg"])}</span></div>
   <hr/>
   ${itemsHtml}
   <hr/>
-  <div class="row"><span>${t["print.subtotal"]}</span><span>${formatCurrency(Number(order.subtotal), locale as "en" | "he" | "my")}</span></div>
-  <div class="row"><span>${t["print.tax"]}</span><span>${formatCurrency(Number(order.tax_amount), locale as "en" | "he" | "my")}</span></div>
-  <div class="row bold"><span>${t["print.total"]}</span><span>${formatCurrency(Number(order.total_amount), locale as "en" | "he" | "my")}</span></div>
+  <div class="row"><span>${t["print.subtotal"]}</span><span>${formatCurrency(Number(order.subtotal), loc)}</span></div>
+  <div class="row"><span>${t["print.tax"]}</span><span>${formatCurrency(Number(order.tax_amount), loc)}</span></div>
+  <div class="row bold"><span>${t["print.total"]}</span><span>${formatCurrency(Number(order.total_amount), loc)}</span></div>
   <div class="row"><span>${t["print.payment_status"]}</span><span>${t[`payment.${order.payment_status}`] ?? order.payment_status}</span></div>
   <hr/>
   <div class="center"><img class="qr" src="${qrDataUrl}" alt="QR"/></div>
@@ -164,22 +339,18 @@ function buildLabelHtml({
   locale: string;
   qrDataUrl: string;
 }): string {
+  const loc = locale as "en" | "he" | "my";
   const items = (order.order_items as Array<Record<string, unknown>>) ?? [];
   const serviceCodes = items
     .flatMap((i) =>
-      (i.order_item_services as Array<Record<string, unknown>>)?.map(
+      ((i.order_item_services as Array<Record<string, unknown>>) ?? []).map(
         (s) => (s.service_type as Record<string, string> | null)?.code
-      ) ?? []
+      )
     )
     .filter(Boolean) as string[];
   const uniqueServices = [...new Set(serviceCodes)];
-  const servicesLabel = uniqueServices
-    .map((s) => t[`service.${s}`] ?? s)
-    .join(" · ");
-
-  const date = new Date(order.created_at as string).toLocaleDateString(
-    localeToIntl(locale as "en" | "he" | "my")
-  );
+  const servicesLabel = uniqueServices.map((s) => t[`service.${s}`] ?? s).join(" · ");
+  const date = new Date(order.created_at as string).toLocaleDateString(localeToIntl(loc));
 
   return `<div class="page center" style="font-size:12pt;font-weight:bold">
   <div style="font-size:20pt;font-weight:900;margin-bottom:6px">${order.order_number}</div>
