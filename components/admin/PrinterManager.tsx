@@ -25,6 +25,7 @@ interface PrinterManagerProps {
 export function PrinterManager({ printers: initial, employees }: PrinterManagerProps) {
   const [printers, setPrinters] = useState<Printer[]>(initial);
   const [saving, setSaving] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, Printer>>(
     Object.fromEntries(initial.map((p) => [p.id, p]))
   );
@@ -44,8 +45,13 @@ export function PrinterManager({ printers: initial, employees }: PrinterManagerP
   }
 
   async function save(id: string) {
-    setSaving(id);
     const draft = drafts[id];
+    if (!draft.ip_address.trim()) {
+      setErrors((prev) => ({ ...prev, [id]: "יש להזין כתובת IP" }));
+      return;
+    }
+    setErrors((prev) => ({ ...prev, [id]: "" }));
+    setSaving(id);
     const res = await fetch(`/api/admin/printers/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -111,13 +117,18 @@ export function PrinterManager({ printers: initial, employees }: PrinterManagerP
                 value={draft.name}
                 onChange={(e) => updateDraft(printer.id, "name", e.target.value)}
               />
-              <Input
-                label="כתובת IP"
-                placeholder="192.168.1.100"
-                value={draft.ip_address}
-                onChange={(e) => updateDraft(printer.id, "ip_address", e.target.value)}
-                dir="ltr"
-              />
+              <div>
+                <Input
+                  label="כתובת IP"
+                  placeholder="192.168.1.100"
+                  value={draft.ip_address}
+                  onChange={(e) => updateDraft(printer.id, "ip_address", e.target.value)}
+                  dir="ltr"
+                />
+                {errors[printer.id] && (
+                  <p className="text-xs text-red-500 mt-1">{errors[printer.id]}</p>
+                )}
+              </div>
             </div>
 
             <div>

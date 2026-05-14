@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 
 const CreateSchema = z.object({
   name: z.string().min(1),
-  ip_address: z.string().min(1),
+  ip_address: z.string().optional().default(""),
   is_active: z.boolean().optional().default(true),
   employee_ids: z.array(z.string().uuid()).optional().default([]),
 });
