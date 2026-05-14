@@ -60,50 +60,12 @@ export async function POST(request: NextRequest) {
 
     if (printerIp) {
       // ─── ePOS-Print path (EPSON network printers) ────────────────────────
+      // The Vercel server cannot reach private LAN IPs (192.168.x.x).
+      // Return the XML to the browser so the tablet — which is on the local
+      // network — can POST directly to the printer via lib/print-client.ts.
       const eposUrl = `http://${printerIp}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
       const xml = buildEposXml({ type, order, t, locale, shopName, shopAddress, taxId });
-
-      let printRes: Response;
-      try {
-        printRes = await fetch(eposUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "text/xml; charset=utf-8",
-            SOAPAction: '""',
-          },
-          body: xml,
-        });
-      } catch (networkErr) {
-        const msg = networkErr instanceof Error ? networkErr.message : String(networkErr);
-        console.error("[print] Network error reaching printer at", printerIp, "—", msg);
-        return NextResponse.json(
-          { error: `לא ניתן להגיע למדפסת בכתובת ${printerIp}. בדוק שהמדפסת דולקת ומחוברת לרשת. (${msg})` },
-          { status: 502 }
-        );
-      }
-
-      const responseText = await printRes.text();
-
-      if (!printRes.ok) {
-        console.error("[print] Printer HTTP error", printRes.status, responseText);
-        return NextResponse.json(
-          { error: `המדפסת החזירה שגיאה ${printRes.status}. בדוק כתובת IP ושה-ePOS-Print מופעל. (${responseText.slice(0, 200)})` },
-          { status: 502 }
-        );
-      }
-
-      // ePOS can return HTTP 200 with a SOAP fault body — check for it
-      if (responseText.includes("SchemaError") || responseText.includes("DeviceNotFound") || responseText.includes("faultstring")) {
-        const match = responseText.match(/<faultstring>([^<]*)<\/faultstring>/);
-        const detail = match?.[1] ?? responseText.slice(0, 300);
-        console.error("[print] ePOS SOAP fault:", detail);
-        return NextResponse.json(
-          { error: `שגיאת ePOS מהמדפסת: ${detail}` },
-          { status: 502 }
-        );
-      }
-
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ clientPrint: true, printerUrl: eposUrl, xml });
     }
 
     // ─── Legacy HTML POST path (print server) ────────────────────────────────

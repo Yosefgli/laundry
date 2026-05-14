@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { sendToPrinter } from "@/lib/print-client";
 import type { Database } from "@/lib/db/database.types";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"];
@@ -29,7 +30,10 @@ export function CombinedOrderPrint({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId: order.id, type: "combined" }),
       });
-      setStatus(res.ok ? "idle" : "error");
+      const data = await res.json();
+      if (!res.ok) { setStatus("error"); return; }
+      if (data.clientPrint) await sendToPrinter(data.printerUrl, data.xml);
+      setStatus("idle");
     } catch {
       setStatus("error");
     }
