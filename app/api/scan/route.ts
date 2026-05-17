@@ -4,7 +4,7 @@ import { requireEmployee } from "@/lib/auth";
 import { z } from "zod";
 
 const ScanSchema = z.object({
-  barcode: z.string().uuid("Invalid barcode — must be order UUID"),
+  barcode: z.string().min(3).max(20),
 });
 
 export async function POST(request: NextRequest) {
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
           )
         )
       `)
-      .eq("id", parsed.data.barcode)
+      .eq("order_number", parsed.data.barcode)
       .single();
 
     if (error || !order) {

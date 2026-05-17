@@ -245,8 +245,8 @@ function buildEposReceipt({
     `<text>${esc(pr(t["print.total"] ?? "Total", cur(Number(order.total_amount))))}\n</text>`,
     `<text>${esc(pr(t["print.payment_status"] ?? "Payment", t[`payment.${order.payment_status}`] ?? String(order.payment_status)))}\n</text>`,
     `<text>${SEP}</text>`,
-    `<barcode type="code128" align="center" width="2" height="80">{B}${String(order.id).slice(0, 8).toUpperCase()}</barcode>`,
-    `<text align="center">${esc(String(order.id).slice(0, 8).toUpperCase())}\n</text>`,
+    `<barcode type="code128" align="center" width="3" height="100">{B}${String(order.order_number ?? "")}</barcode>`,
+    `<text align="center">${esc(String(order.order_number ?? ""))}\n</text>`,
     `<feed line="3"/>`,
     `<cut type="feed"/>`,
   ].join("");
@@ -278,8 +278,8 @@ function buildEposLabel({
 
   return [
     `<text align="center" width="2" height="2">${esc(String(order.order_number ?? ""))}\n</text>`,
-    `<barcode type="code128" align="center" width="2" height="80">{B}${String(order.id).slice(0, 8).toUpperCase()}</barcode>`,
-    `<text align="center" width="1" height="1">${esc(String(order.id).slice(0, 8).toUpperCase())}\n</text>`,
+    `<barcode type="code128" align="center" width="3" height="100">{B}${String(order.order_number ?? "")}</barcode>`,
+    `<text align="center" width="1" height="1">${esc(String(order.order_number ?? ""))}\n</text>`,
     order.customer_name ? `<text align="center">${te(String(order.customer_name))}\n</text>` : "",
     servicesLabel ? `<text align="center">${te(servicesLabel)}\n</text>` : "",
     order.customer_notes ? `<text align="center">${te(String(order.customer_notes))}\n</text>` : "",
