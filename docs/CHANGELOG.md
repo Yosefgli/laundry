@@ -15,3 +15,4 @@
 - fix: POST /api/admin/printers now accepts empty ip_address (create-then-edit pattern); PrinterManager validates IP client-side before PATCH and shows inline Hebrew error
 fix: /api/print — catch network errors from ePOS fetch separately; return Hebrew error with printer IP and reason; parse ePOS SOAP fault body (HTTP 200 with error); log actual exception in outer catch
 - 2026-05-14: PrinterManager UI — updated IP field placeholder and hint text to show ip:port format is supported (e.g. 192.168.1.100:8008 for non-80 ePOS-Print port)
+- 2026-05-17: fix ePOS-Print integration for TM-m30III — correct port (80), plain-string body (no-cors), remove unsupported bold/dw/dh/symbol attrs, add RTL Hebrew support (reverseRtl+stripBidi), add Code 128 barcode with {B} prefix to receipt and label

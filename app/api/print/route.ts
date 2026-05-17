@@ -142,6 +142,18 @@ function padRow(left: string, right: string, width = EPOS_WIDTH): string {
   return left + " ".repeat(spaces) + right;
 }
 
+// Remove Unicode BiDi control characters that confuse LTR-only printers
+function stripBidi(s: string): string {
+  return s.replace(/[‎‏‪-‮⁦-⁩]/g, "");
+}
+
+// Reverse string for RTL display on an LTR-only thermal printer.
+// When the printer outputs characters left-to-right, reversing the string
+// makes Hebrew read correctly right-to-left on the physical paper.
+function reverseRtl(s: string): string {
+  return [...s].reverse().join("");
+}
+
 function buildEposXml({
   type,
   order,
@@ -187,41 +199,54 @@ function buildEposReceipt({
   taxId: string;
 }): string {
   const loc = locale as "en" | "he" | "my";
+  const isRtl = loc === "he";
   const SEP = "-".repeat(EPOS_WIDTH) + "\n";
   const items = (order.order_items as Array<Record<string, unknown>>) ?? [];
+
+  // Escape + reverse for RTL if needed
+  const te = (s: string) => esc(isRtl ? reverseRtl(stripBidi(s)) : s);
+  // Currency/weight without bidi marks
+  const cur = (n: number) => stripBidi(formatCurrency(n, loc));
+  const wt = (kg: number) => stripBidi(formatWeight(kg, loc, t["unit.kg"]));
+  // Padded row: RTL flips positions so label ends up on the right (RTL-readable side)
+  const pr = (label: string, value: string) =>
+    isRtl ? padRow(value, reverseRtl(stripBidi(label))) : padRow(label, value);
 
   const itemLines = items
     .map((item, idx) => {
       const services = (item.order_item_services as Array<Record<string, unknown>>) ?? [];
+      const bagHeader = isRtl
+        ? reverseRtl(`${t["customer.bag"]} ${idx + 1} — ${wt(Number(item.weight_kg))}`)
+        : `${t["customer.bag"]} ${idx + 1} — ${wt(Number(item.weight_kg))}`;
       const serviceLines = services
         .map((s) => {
           const code = (s.service_type as Record<string, string> | null)?.code ?? "";
-          return padRow(`  ${esc(t[`service.${code}`] ?? code)}`, esc(formatCurrency(Number(s.line_total), loc))) + "\n";
+          const label = `  ${t[`service.${code}`] ?? code}`;
+          const price = cur(Number(s.line_total));
+          return (isRtl ? padRow(price, reverseRtl(label)) : padRow(label, price)) + "\n";
         })
         .join("");
-      return (
-        `${esc(t["customer.bag"])} ${idx + 1} — ${esc(formatWeight(Number(item.weight_kg), loc, t["unit.kg"]))}\n` +
-        serviceLines
-      );
+      return bagHeader + "\n" + serviceLines;
     })
     .join("");
 
   return [
-    `<text align="center" width="2" height="2">${esc(shopName)}\n</text>`,
+    `<text align="center" width="2" height="2">${te(shopName)}\n</text>`,
     shopAddress ? `<text align="center" width="1" height="1">${esc(shopAddress)}\n</text>` : "",
-    taxId ? `<text align="center">${esc(t["print.receipt_title"])} | ${esc(taxId)}\n</text>` : "",
+    taxId ? `<text align="center">${te(`${t["print.receipt_title"]} | ${taxId}`)}\n</text>` : "",
     `<text align="left">${SEP}</text>`,
-    `<text>${esc(padRow(t["print.order_number"] ?? "Order", String(order.order_number ?? "")))}\n</text>`,
-    `<text>${esc(padRow(t["print.weight"] ?? "Weight", formatWeight(Number(order.total_weight_kg), loc, t["unit.kg"])))}\n</text>`,
+    `<text>${esc(pr(t["print.order_number"] ?? "Order", String(order.order_number ?? "")))}\n</text>`,
+    `<text>${esc(pr(t["print.weight"] ?? "Weight", wt(Number(order.total_weight_kg))))}\n</text>`,
     `<text>${SEP}</text>`,
     `<text>${esc(itemLines)}</text>`,
     `<text>${SEP}</text>`,
-    `<text>${esc(padRow(t["print.subtotal"] ?? "Subtotal", formatCurrency(Number(order.subtotal), loc)))}\n</text>`,
-    `<text>${esc(padRow(t["print.tax"] ?? "Tax", formatCurrency(Number(order.tax_amount), loc)))}\n</text>`,
-    `<text>${esc(padRow(t["print.total"] ?? "Total", formatCurrency(Number(order.total_amount), loc)))}\n</text>`,
-    `<text>${esc(padRow(t["print.payment_status"] ?? "Payment", t[`payment.${order.payment_status}`] ?? String(order.payment_status)))}\n</text>`,
+    `<text>${esc(pr(t["print.subtotal"] ?? "Subtotal", cur(Number(order.subtotal))))}\n</text>`,
+    `<text>${esc(pr(t["print.tax"] ?? "Tax", cur(Number(order.tax_amount))))}\n</text>`,
+    `<text>${esc(pr(t["print.total"] ?? "Total", cur(Number(order.total_amount))))}\n</text>`,
+    `<text>${esc(pr(t["print.payment_status"] ?? "Payment", t[`payment.${order.payment_status}`] ?? String(order.payment_status)))}\n</text>`,
     `<text>${SEP}</text>`,
-    `<text align="center">${esc((String(order.id)).slice(0, 8).toUpperCase())}\n</text>`,
+    `<barcode type="code128" align="center" width="2" height="80">{B}${String(order.id).slice(0, 8).toUpperCase()}</barcode>`,
+    `<text align="center">${esc(String(order.id).slice(0, 8).toUpperCase())}\n</text>`,
     `<feed line="3"/>`,
     `<cut type="feed"/>`,
   ].join("");
@@ -237,6 +262,8 @@ function buildEposLabel({
   locale: string;
 }): string {
   const loc = locale as "en" | "he" | "my";
+  const isRtl = loc === "he";
+  const te = (s: string) => esc(isRtl ? reverseRtl(stripBidi(s)) : s);
   const items = (order.order_items as Array<Record<string, unknown>>) ?? [];
   const serviceCodes = items
     .flatMap((i) =>
@@ -251,10 +278,11 @@ function buildEposLabel({
 
   return [
     `<text align="center" width="2" height="2">${esc(String(order.order_number ?? ""))}\n</text>`,
+    `<barcode type="code128" align="center" width="2" height="80">{B}${String(order.id).slice(0, 8).toUpperCase()}</barcode>`,
     `<text align="center" width="1" height="1">${esc(String(order.id).slice(0, 8).toUpperCase())}\n</text>`,
-    order.customer_name ? `<text align="center">${esc(String(order.customer_name))}\n</text>` : "",
-    servicesLabel ? `<text align="center">${esc(servicesLabel)}\n</text>` : "",
-    order.customer_notes ? `<text align="center">${esc(String(order.customer_notes))}\n</text>` : "",
+    order.customer_name ? `<text align="center">${te(String(order.customer_name))}\n</text>` : "",
+    servicesLabel ? `<text align="center">${te(servicesLabel)}\n</text>` : "",
+    order.customer_notes ? `<text align="center">${te(String(order.customer_notes))}\n</text>` : "",
     `<text align="center">${esc(date)}\n</text>`,
     `<feed line="3"/>`,
     `<cut type="feed"/>`,
