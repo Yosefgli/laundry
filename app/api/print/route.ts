@@ -207,10 +207,10 @@ function buildEposReceipt({
     .join("");
 
   return [
-    `<text align="center" bold="true" dw="true" dh="true">${esc(shopName)}\n</text>`,
-    shopAddress ? `<text align="center" bold="false" dw="false" dh="false">${esc(shopAddress)}\n</text>` : "",
+    `<text align="center" width="2" height="2">${esc(shopName)}\n</text>`,
+    shopAddress ? `<text align="center" width="1" height="1">${esc(shopAddress)}\n</text>` : "",
     taxId ? `<text align="center">${esc(t["print.receipt_title"])} | ${esc(taxId)}\n</text>` : "",
-    `<text align="left" bold="false">${SEP}</text>`,
+    `<text align="left">${SEP}</text>`,
     `<text>${esc(padRow(t["print.order_number"] ?? "Order", String(order.order_number ?? "")))}\n</text>`,
     `<text>${esc(padRow(t["print.weight"] ?? "Weight", formatWeight(Number(order.total_weight_kg), loc, t["unit.kg"])))}\n</text>`,
     `<text>${SEP}</text>`,
@@ -218,10 +218,9 @@ function buildEposReceipt({
     `<text>${SEP}</text>`,
     `<text>${esc(padRow(t["print.subtotal"] ?? "Subtotal", formatCurrency(Number(order.subtotal), loc)))}\n</text>`,
     `<text>${esc(padRow(t["print.tax"] ?? "Tax", formatCurrency(Number(order.tax_amount), loc)))}\n</text>`,
-    `<text bold="true">${esc(padRow(t["print.total"] ?? "Total", formatCurrency(Number(order.total_amount), loc)))}\n</text>`,
-    `<text bold="false">${esc(padRow(t["print.payment_status"] ?? "Payment", t[`payment.${order.payment_status}`] ?? String(order.payment_status)))}\n</text>`,
+    `<text>${esc(padRow(t["print.total"] ?? "Total", formatCurrency(Number(order.total_amount), loc)))}\n</text>`,
+    `<text>${esc(padRow(t["print.payment_status"] ?? "Payment", t[`payment.${order.payment_status}`] ?? String(order.payment_status)))}\n</text>`,
     `<text>${SEP}</text>`,
-    `<symbol type="qrcode" level="0" width="5" height="0">${esc(String(order.id))}</symbol>`,
     `<text align="center">${esc((String(order.id)).slice(0, 8).toUpperCase())}\n</text>`,
     `<feed line="3"/>`,
     `<cut type="feed"/>`,
@@ -251,9 +250,9 @@ function buildEposLabel({
   const date = new Date(order.created_at as string).toLocaleDateString(localeToIntl(loc));
 
   return [
-    `<text align="center" bold="true" dw="true" dh="true">${esc(String(order.order_number ?? ""))}\n</text>`,
-    `<symbol type="qrcode" level="0" width="6" height="0">${esc(String(order.id))}</symbol>`,
-    order.customer_name ? `<text align="center" bold="false" dw="false" dh="false">${esc(String(order.customer_name))}\n</text>` : "",
+    `<text align="center" width="2" height="2">${esc(String(order.order_number ?? ""))}\n</text>`,
+    `<text align="center" width="1" height="1">${esc(String(order.id).slice(0, 8).toUpperCase())}\n</text>`,
+    order.customer_name ? `<text align="center">${esc(String(order.customer_name))}\n</text>` : "",
     servicesLabel ? `<text align="center">${esc(servicesLabel)}\n</text>` : "",
     order.customer_notes ? `<text align="center">${esc(String(order.customer_notes))}\n</text>` : "",
     `<text align="center">${esc(date)}\n</text>`,
