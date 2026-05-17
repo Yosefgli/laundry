@@ -233,8 +233,7 @@ function buildEposReceipt({
     `<text bold="true">${esc(padRow(t["print.total"] ?? "Total", formatCurrency(Number(order.total_amount), loc)))}\n</text>`,
     `<text bold="false">${esc(padRow(t["print.payment_status"] ?? "Payment", t[`payment.${order.payment_status}`] ?? String(order.payment_status)))}\n</text>`,
     `<text>${SEP}</text>`,
-    `<symbol type="qrcode" level="0" width="5" height="0">${esc(String(order.id))}</symbol>`,
-    `<text align="center">${esc((String(order.id)).slice(0, 8).toUpperCase())}\n</text>`,
+    `<barcode type="code128" align="center" width="3" height="100" hri="below">${esc(String(order.order_number ?? ""))}</barcode>`,
     `<feed line="3"/>`,
     `<cut type="feed"/>`,
   ].join("");
@@ -264,7 +263,7 @@ function buildEposLabel({
 
   return [
     `<text align="center" bold="true" dw="true" dh="true">${esc(String(order.order_number ?? ""))}\n</text>`,
-    `<symbol type="qrcode" level="0" width="6" height="0">${esc(String(order.id))}</symbol>`,
+    `<barcode type="code128" align="center" width="3" height="100" hri="none">${esc(String(order.order_number ?? ""))}</barcode>`,
     order.customer_name ? `<text align="center" bold="false" dw="false" dh="false">${esc(String(order.customer_name))}\n</text>` : "",
     servicesLabel ? `<text align="center">${esc(servicesLabel)}\n</text>` : "",
     order.customer_notes ? `<text align="center">${esc(String(order.customer_notes))}\n</text>` : "",
