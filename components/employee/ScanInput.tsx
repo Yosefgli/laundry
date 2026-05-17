@@ -52,7 +52,7 @@ export function ScanInput({
 
   const emitScan = useCallback(
     (value: string) => {
-      const val = value.trim();
+      const val = value.trim().replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, "");
       if (val.length < 8) return false;
 
       const now = Date.now();
