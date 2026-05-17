@@ -20,3 +20,4 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 - 2026-05-17: fix: remove {B} prefix from ePOS-Print Code 128 barcode XML — {B} is bwip-js syntax only, caused trailing { in scan result (e.g. L-000017{); Epson auto-selects charset B for ASCII data
 - fix: remove invalid align= attribute from ePOS-Print <barcode> elements; add preceding <text align='center'/> to properly center barcodes on receipt and label (was silently skipped by printer)
 - 2026-05-17: fix: restore align="center" directly on ePOS-Print <barcode> elements — <text align="center"/> workaround caused barcode to be omitted; align on barcode is valid and required per Epson spec
+- 2026-05-17: fix: restore {B} Code Set B prefix on ePOS-Print Code 128 barcodes — {B} is Epson ePOS-Print syntax (not bwip-js only); without it TM-m30III skips the barcode element entirely
