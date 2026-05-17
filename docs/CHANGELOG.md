@@ -19,3 +19,4 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 - 2026-05-17: fix: barcode encodes order_number (L-000042) instead of UUID slice — fixes "Invalid barcode" on scan; increased Code 128 width 2→3 and height 80→100 for better scannability
 - 2026-05-17: fix: remove {B} prefix from ePOS-Print Code 128 barcode XML — {B} is bwip-js syntax only, caused trailing { in scan result (e.g. L-000017{); Epson auto-selects charset B for ASCII data
 - fix: remove invalid align= attribute from ePOS-Print <barcode> elements; add preceding <text align='center'/> to properly center barcodes on receipt and label (was silently skipped by printer)
+- 2026-05-17: fix: restore align="center" directly on ePOS-Print <barcode> elements — <text align="center"/> workaround caused barcode to be omitted; align on barcode is valid and required per Epson spec
