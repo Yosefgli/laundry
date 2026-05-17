@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { sendToPrinter } from "@/lib/print-client";
 import type { Database } from "@/lib/db/database.types";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"];
@@ -22,7 +23,10 @@ export function PrintLayout({ order, translations: t, printLabel }: PrintLayoutP
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId: order.id, type: "receipt" }),
       });
-      setStatus(res.ok ? "idle" : "error");
+      const data = await res.json();
+      if (!res.ok) { setStatus("error"); return; }
+      if (data.clientPrint) await sendToPrinter(data.printerUrl, data.xml);
+      setStatus("idle");
     } catch {
       setStatus("error");
     }

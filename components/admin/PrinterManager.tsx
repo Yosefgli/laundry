@@ -97,7 +97,7 @@ export function PrinterManager({ printers: initial, employees }: PrinterManagerP
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">לכל מדפסת בחר כתובת IP ואיזה עובדים ישלחו אליה הדפסות.</p>
+        <p className="text-sm text-gray-500">לכל מדפסת בחר כתובת IP (או IP:פורט) ואיזה עובדים ישלחו אליה הדפסות.</p>
         <Button onClick={addPrinter} variant="secondary">+ הוסף מדפסת</Button>
       </div>
 
@@ -119,8 +119,8 @@ export function PrinterManager({ printers: initial, employees }: PrinterManagerP
               />
               <div>
                 <Input
-                  label="כתובת IP"
-                  placeholder="192.168.1.100"
+                  label="כתובת IP (או IP:פורט)"
+                  placeholder="192.168.1.100 או 192.168.1.100:8008"
                   value={draft.ip_address}
                   onChange={(e) => updateDraft(printer.id, "ip_address", e.target.value)}
                   dir="ltr"
