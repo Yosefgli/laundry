@@ -13,6 +13,8 @@ export async function sendToPrinter(printerUrl: string, xml: string): Promise<vo
   await fetch(printerUrl, {
     method: "POST",
     mode: "no-cors",
-    body: xml,
+    // Blob with text/xml type is required by ePOS-Print; plain string body
+    // would default to text/plain which some printer firmware rejects.
+    body: new Blob([xml], { type: "text/xml; charset=utf-8" }),
   });
 }
