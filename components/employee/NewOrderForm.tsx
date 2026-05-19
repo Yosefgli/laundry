@@ -97,50 +97,50 @@ export function NewOrderForm({
     const channel = supabase.channel(customerDeviceChannelName(payload.customerDeviceId), {
       config: { broadcast: { self: false, ack: true } },
     });
-    let completed = false;
 
-    const delivered = await new Promise<boolean>((resolve) => {
-      const done = (sent: boolean) => {
-        if (completed) return;
-        completed = true;
-        resolve(sent);
-      };
-      const timeout = window.setTimeout(() => done(false), HANDOFF_BROADCAST_TIMEOUT_MS);
-
-      channel.subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          window.clearTimeout(timeout);
-          if (completed) return;
-          const sent = await sendSessionStarted(channel, payload);
-          done(sent);
-        }
-
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-          window.clearTimeout(timeout);
-          done(false);
-        }
-      });
-    });
+    const envelope = makeEnvelope(SessionEvent.SESSION_STARTED, payload);
+    const result = await channel
+      .httpSend(SessionEvent.SESSION_STARTED, envelope, { timeout: HANDOFF_BROADCAST_TIMEOUT_MS })
+      .catch(() => ({ success: false as const, status: 0, error: "handoff failed" }));
 
     await supabase.removeChannel(channel);
-    return delivered;
+    return result.success;
   }
 
   async function onSubmit(data: FormData) {
     setLoading(true);
     setError(null);
     try {
+      const orderId = crypto.randomUUID();
+      const sessionId = crypto.randomUUID();
+      const customerSessionDeviceId = customerDeviceId;
+
+      const initialHandoff = publishSessionStarted({
+        sessionId,
+        orderId,
+        customerDeviceId: customerSessionDeviceId,
+        workflowStep: "customer_info",
+        totalWeightKg: data.weightKg,
+        isReady: false,
+      }).catch(() => false);
+
       const sessionRes = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weightKg: data.weightKg, employeeDeviceId, workstationId }),
+        body: JSON.stringify({
+          sessionId,
+          orderId,
+          weightKg: data.weightKg,
+          employeeDeviceId,
+          workstationId,
+        }),
       });
       const sessionJson = await sessionRes.json();
       if (!sessionJson.data) throw new Error(sessionJson.error ?? t["common.error"]);
 
-      const orderId: string = sessionJson.data.order_id;
       const order = sessionJson.data.order;
 
+      void initialHandoff;
       await publishSessionStarted({
         sessionId: sessionJson.data.id,
         orderId,
@@ -148,6 +148,7 @@ export function NewOrderForm({
         workflowStep: sessionJson.data.workflow_step ?? "customer_info",
         orderNumber: order?.order_number,
         totalWeightKg: Number(order?.total_weight_kg ?? data.weightKg),
+        isReady: true,
       });
 
       onCreated(orderId, sessionJson.data.id);

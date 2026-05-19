@@ -28,6 +28,7 @@ export interface SessionStartedPayload {
   workflowStep: string;
   orderNumber?: string;
   totalWeightKg?: number;
+  isReady?: boolean;
 }
 
 export interface WorkflowStepChangedPayload {

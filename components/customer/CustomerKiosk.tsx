@@ -32,6 +32,7 @@ interface CustomerKioskProps {
   translations: Record<string, string>;
   locale: Locale;
   onReturnToPriceList?: () => void;
+  isReady?: boolean;
 }
 
 export function CustomerKiosk({
@@ -41,6 +42,7 @@ export function CustomerKiosk({
   translations: t,
   locale,
   onReturnToPriceList,
+  isReady = true,
 }: CustomerKioskProps) {
   const [step, setStep] = useState<Step>("info");
   const [total, setTotal] = useState(0);
@@ -153,6 +155,7 @@ export function CustomerKiosk({
               translations={t}
               locale={locale}
               onSubmitted={handleInfoSubmitted}
+              disabled={!isReady}
             />
           </div>
         )}

@@ -21,11 +21,14 @@ export async function POST(request: NextRequest) {
       order_number: string;
       total_weight_kg: number;
     } | null = null;
+    const auditWrites: Array<Promise<void>> = [];
 
     if (parsed.data.weightKg !== undefined) {
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
+          id: parsed.data.orderId,
+          order_number: parsed.data.orderNumber,
           employee_id: employee.id,
           workstation_id: parsed.data.workstationId ?? null,
           status: "weighed",
@@ -49,13 +52,15 @@ export async function POST(request: NextRequest) {
         total_weight_kg: Number(order.total_weight_kg),
       };
 
-      await logAudit(supabase, {
-        employeeId: employee.id,
-        action: "order_created",
-        entityType: "order",
-        entityId: order.id,
-        newValues: { status: "weighed", totalWeightKg: parsed.data.weightKg },
-      });
+      auditWrites.push(
+        logAudit(supabase, {
+          employeeId: employee.id,
+          action: "order_created",
+          entityType: "order",
+          entityId: order.id,
+          newValues: { status: "weighed", totalWeightKg: parsed.data.weightKg },
+        })
+      );
     }
 
     if (!orderId) {
@@ -65,6 +70,7 @@ export async function POST(request: NextRequest) {
     const { data: session, error } = await supabase
       .from("sessions")
       .insert({
+        id: parsed.data.sessionId,
         order_id: orderId,
         employee_device_id: parsed.data.employeeDeviceId,
         customer_device_id: `customer-${employee.id}`,
@@ -81,13 +87,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ data: null, error: error?.message }, { status: 500 });
     }
 
-    await logAudit(supabase, {
-      employeeId: employee.id,
-      action: "session_created",
-      entityType: "session",
-      entityId: session.id,
-      newValues: { orderId },
-    });
+    auditWrites.push(
+      logAudit(supabase, {
+        employeeId: employee.id,
+        action: "session_created",
+        entityType: "session",
+        entityId: session.id,
+        newValues: { orderId },
+      })
+    );
+
+    void Promise.all(auditWrites).catch(() => undefined);
 
     return NextResponse.json({
       data: orderForResponse ? { ...session, order: orderForResponse } : session,

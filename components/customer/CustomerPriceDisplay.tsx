@@ -26,7 +26,15 @@ interface CustomerPriceDisplayProps {
 }
 
 type ActiveSessionResponse = {
-  data: { id: string; customerDeviceId: string } | null;
+  data: {
+    id: string;
+    customerDeviceId: string;
+    order: {
+      id: string;
+      orderNumber: string;
+      totalWeightKg: number;
+    } | null;
+  } | null;
   error: string | null;
 };
 
@@ -49,12 +57,33 @@ export function CustomerPriceDisplay({
     let cancelled = false;
     const supabase = createClient();
 
+    function mergeSession(
+      previous: SessionStartedPayload | null,
+      next: SessionStartedPayload
+    ): SessionStartedPayload {
+      return {
+        ...previous,
+        ...next,
+        orderId: next.orderId || previous?.orderId || "",
+        workflowStep: next.workflowStep || previous?.workflowStep || "customer_info",
+        orderNumber: next.orderNumber ?? previous?.orderNumber,
+        totalWeightKg: next.totalWeightKg ?? previous?.totalWeightKg,
+        isReady: Boolean(previous?.isReady || next.isReady),
+      };
+    }
+
     function openSession(session: SessionStartedPayload, deviceId = customerDeviceId) {
       const sessionId = session.sessionId;
-      if (cancelled || openedSessionRef.current === sessionId) return;
+      if (cancelled) return;
+
+      if (openedSessionRef.current === sessionId) {
+        setActiveSession((previous) => mergeSession(previous, session));
+        return;
+      }
+
       openedSessionRef.current = sessionId;
 
-      if (session.orderNumber && session.totalWeightKg !== undefined) {
+      if (session.orderId && session.totalWeightKg !== undefined) {
         setActiveSession(session);
         return;
       }
@@ -118,9 +147,12 @@ export function CustomerPriceDisplay({
           openSession(
             {
               sessionId: json.data.id,
-              orderId: "",
+              orderId: json.data.order?.id ?? "",
+              orderNumber: json.data.order?.orderNumber,
+              totalWeightKg: json.data.order?.totalWeightKg,
               workflowStep: "customer_info",
               customerDeviceId: json.data.customerDeviceId,
+              isReady: Boolean(json.data.order),
             },
             json.data.customerDeviceId
           );
@@ -140,13 +172,13 @@ export function CustomerPriceDisplay({
     };
   }, [customerDeviceId, router]);
 
-  if (activeSession?.orderNumber && activeSession.totalWeightKg !== undefined) {
+  if (activeSession?.orderId && activeSession.totalWeightKg !== undefined) {
     return (
       <CustomerKiosk
         sessionId={activeSession.sessionId}
         order={{
           id: activeSession.orderId,
-          order_number: activeSession.orderNumber,
+          order_number: activeSession.orderNumber ?? "",
           status: "weighed",
           total_weight_kg: activeSession.totalWeightKg,
           order_items: [{ id: "bag-0", weight_kg: activeSession.totalWeightKg }],
@@ -154,6 +186,7 @@ export function CustomerPriceDisplay({
         serviceTypes={serviceTypes}
         translations={t}
         locale={locale}
+        isReady={activeSession.isReady !== false}
         onReturnToPriceList={() => {
           openedSessionRef.current = null;
           setActiveSession(null);
