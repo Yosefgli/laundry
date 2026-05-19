@@ -15,10 +15,57 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ data: null, error: parsed.error.flatten() }, { status: 400 });
     }
 
+    let orderId = parsed.data.orderId;
+    let orderForResponse: {
+      id: string;
+      order_number: string;
+      total_weight_kg: number;
+    } | null = null;
+
+    if (parsed.data.weightKg !== undefined) {
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          employee_id: employee.id,
+          workstation_id: parsed.data.workstationId ?? null,
+          status: "weighed",
+          payment_status: "pending",
+          total_weight_kg: parsed.data.weightKg,
+        })
+        .select()
+        .single();
+
+      if (orderError || !order) {
+        return NextResponse.json(
+          { data: null, error: orderError?.message ?? "Failed to create order" },
+          { status: 500 }
+        );
+      }
+
+      orderId = order.id;
+      orderForResponse = {
+        id: order.id,
+        order_number: order.order_number,
+        total_weight_kg: Number(order.total_weight_kg),
+      };
+
+      await logAudit(supabase, {
+        employeeId: employee.id,
+        action: "order_created",
+        entityType: "order",
+        entityId: order.id,
+        newValues: { status: "weighed", totalWeightKg: parsed.data.weightKg },
+      });
+    }
+
+    if (!orderId) {
+      return NextResponse.json({ data: null, error: "Order is required" }, { status: 400 });
+    }
+
     const { data: session, error } = await supabase
       .from("sessions")
       .insert({
-        order_id: parsed.data.orderId,
+        order_id: orderId,
         employee_device_id: parsed.data.employeeDeviceId,
         customer_device_id: `customer-${employee.id}`,
         workstation_id: parsed.data.workstationId ?? null,
@@ -39,10 +86,13 @@ export async function POST(request: NextRequest) {
       action: "session_created",
       entityType: "session",
       entityId: session.id,
-      newValues: { orderId: parsed.data.orderId },
+      newValues: { orderId },
     });
 
-    return NextResponse.json({ data: session, error: null }, { status: 201 });
+    return NextResponse.json({
+      data: orderForResponse ? { ...session, order: orderForResponse } : session,
+      error: null,
+    }, { status: 201 });
   } catch {
     return NextResponse.json({ data: null, error: "Unauthorized" }, { status: 401 });
   }

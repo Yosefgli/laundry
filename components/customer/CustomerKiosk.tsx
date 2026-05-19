@@ -31,6 +31,7 @@ interface CustomerKioskProps {
   serviceTypes: ServiceType[];
   translations: Record<string, string>;
   locale: Locale;
+  onReturnToPriceList?: () => void;
 }
 
 export function CustomerKiosk({
@@ -39,6 +40,7 @@ export function CustomerKiosk({
   serviceTypes,
   translations: t,
   locale,
+  onReturnToPriceList,
 }: CustomerKioskProps) {
   const [step, setStep] = useState<Step>("info");
   const [total, setTotal] = useState(0);
@@ -65,11 +67,15 @@ export function CustomerKiosk({
     if (step !== "confirmed") return;
 
     const timeout = window.setTimeout(() => {
-      router.replace("/customer");
+      if (onReturnToPriceList) {
+        onReturnToPriceList();
+      } else {
+        router.replace("/customer");
+      }
     }, CONFIRMATION_RETURN_DELAY_MS);
 
     return () => window.clearTimeout(timeout);
-  }, [router, step]);
+  }, [onReturnToPriceList, router, step]);
 
   function handleInfoSubmitted(info: CustomerInfoInput) {
     void publish(SessionEvent.CUSTOMER_INFO_SUBMITTED, { sessionId, ...info });

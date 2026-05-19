@@ -130,40 +130,24 @@ export function NewOrderForm({
     setLoading(true);
     setError(null);
     try {
-      const idempotencyKey = `new-order-${Date.now()}`;
-
-      // 1. Create order
-      const orderRes = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "idempotency-key": idempotencyKey },
-        body: JSON.stringify({ workstationId }),
-      });
-      const orderJson = await orderRes.json();
-      if (!orderJson.data) throw new Error(orderJson.error ?? t["common.error"]);
-
-      const orderId: string = orderJson.data.id;
-
-      // 2. Store weight and advance to 'weighed'
-      await fetch(`/api/orders/${orderId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set_weight", weightKg: data.weightKg }),
-      });
-
-      // 4. Create session
       const sessionRes = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, employeeDeviceId, workstationId }),
+        body: JSON.stringify({ weightKg: data.weightKg, employeeDeviceId, workstationId }),
       });
       const sessionJson = await sessionRes.json();
       if (!sessionJson.data) throw new Error(sessionJson.error ?? t["common.error"]);
+
+      const orderId: string = sessionJson.data.order_id;
+      const order = sessionJson.data.order;
 
       await publishSessionStarted({
         sessionId: sessionJson.data.id,
         orderId,
         customerDeviceId: sessionJson.data.customer_device_id ?? customerDeviceId,
         workflowStep: sessionJson.data.workflow_step ?? "customer_info",
+        orderNumber: order?.order_number,
+        totalWeightKg: Number(order?.total_weight_kg ?? data.weightKg),
       });
 
       onCreated(orderId, sessionJson.data.id);

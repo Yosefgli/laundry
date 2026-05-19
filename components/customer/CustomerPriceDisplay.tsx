@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency, isRTL, type Locale, type TranslationMap } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { CustomerKiosk } from "@/components/customer/CustomerKiosk";
 import {
   customerDeviceChannelName,
   SessionEvent,
@@ -42,14 +43,22 @@ export function CustomerPriceDisplay({
   const router = useRouter();
   const dir = isRTL(locale) ? "rtl" : "ltr";
   const openedSessionRef = useRef<string | null>(null);
+  const [activeSession, setActiveSession] = useState<SessionStartedPayload | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
 
-    function openSession(sessionId: string, deviceId = customerDeviceId) {
+    function openSession(session: SessionStartedPayload, deviceId = customerDeviceId) {
+      const sessionId = session.sessionId;
       if (cancelled || openedSessionRef.current === sessionId) return;
       openedSessionRef.current = sessionId;
+
+      if (session.orderNumber && session.totalWeightKg !== undefined) {
+        setActiveSession(session);
+        return;
+      }
+
       router.replace(`/customer/${sessionId}?device=${encodeURIComponent(deviceId)}`);
     }
 
@@ -62,7 +71,7 @@ export function CustomerPriceDisplay({
         const session = envelope.payload ?? (payload as SessionStartedPayload);
         if (!session?.sessionId) return;
         if (session.customerDeviceId && session.customerDeviceId !== customerDeviceId) return;
-        openSession(session.sessionId, session.customerDeviceId);
+        openSession(session, session.customerDeviceId);
       })
       .on(
         "postgres_changes",
@@ -79,7 +88,15 @@ export function CustomerPriceDisplay({
             customer_device_id?: string | null;
           };
           if (session.status !== "active" || !session.id) return;
-          openSession(session.id, session.customer_device_id ?? customerDeviceId);
+          openSession(
+            {
+              sessionId: session.id,
+              orderId: "",
+              workflowStep: "customer_info",
+              customerDeviceId: session.customer_device_id ?? customerDeviceId,
+            },
+            session.customer_device_id ?? customerDeviceId
+          );
         }
       )
       .subscribe((status) => {
@@ -98,7 +115,15 @@ export function CustomerPriceDisplay({
 
         const json = (await res.json()) as ActiveSessionResponse;
         if (!cancelled && json.data?.id) {
-          openSession(json.data.id, json.data.customerDeviceId);
+          openSession(
+            {
+              sessionId: json.data.id,
+              orderId: "",
+              workflowStep: "customer_info",
+              customerDeviceId: json.data.customerDeviceId,
+            },
+            json.data.customerDeviceId
+          );
         }
       } catch {
         // Keep the price list visible if the fallback check fails.
@@ -114,6 +139,28 @@ export function CustomerPriceDisplay({
       void supabase.removeChannel(channel);
     };
   }, [customerDeviceId, router]);
+
+  if (activeSession?.orderNumber && activeSession.totalWeightKg !== undefined) {
+    return (
+      <CustomerKiosk
+        sessionId={activeSession.sessionId}
+        order={{
+          id: activeSession.orderId,
+          order_number: activeSession.orderNumber,
+          status: "weighed",
+          total_weight_kg: activeSession.totalWeightKg,
+          order_items: [{ id: "bag-0", weight_kg: activeSession.totalWeightKg }],
+        }}
+        serviceTypes={serviceTypes}
+        translations={t}
+        locale={locale}
+        onReturnToPriceList={() => {
+          openedSessionRef.current = null;
+          setActiveSession(null);
+        }}
+      />
+    );
+  }
 
   const activeServices = serviceTypes.filter((service) => service.is_active);
 

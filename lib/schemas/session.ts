@@ -1,10 +1,14 @@
 import { z } from "zod";
 
 export const CreateSessionSchema = z.object({
-  orderId: z.string().uuid(),
+  orderId: z.string().uuid().optional(),
+  weightKg: z.number().positive().max(999).optional(),
   employeeDeviceId: z.string().min(1).max(200),
   workstationId: z.string().uuid().optional(),
-});
+}).refine(
+  (data) => Boolean(data.orderId) !== (data.weightKg !== undefined),
+  { message: "Provide exactly one of orderId or weightKg", path: ["orderId"] }
+);
 
 export const ClaimSessionSchema = z.object({
   pairingCode: z.string().length(6),

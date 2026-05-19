@@ -26,6 +26,8 @@ export interface SessionStartedPayload {
   orderId: string;
   customerDeviceId?: string;
   workflowStep: string;
+  orderNumber?: string;
+  totalWeightKg?: number;
 }
 
 export interface WorkflowStepChangedPayload {
