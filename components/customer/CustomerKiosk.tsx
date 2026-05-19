@@ -7,6 +7,7 @@ import { DegradedModeBanner, ReconnectingBanner } from "@/components/ui/Degraded
 import { useSessionChannel } from "@/hooks/useSessionChannel";
 import { SessionEvent } from "@/lib/realtime/events";
 import { formatCurrency, isRTL, type Locale } from "@/lib/i18n";
+import type { CustomerInfoInput } from "@/lib/schemas/order";
 import type { Database } from "@/lib/db/database.types";
 
 type ServiceType = Database["public"]["Tables"]["service_types"]["Row"] & {
@@ -70,24 +71,27 @@ export function CustomerKiosk({
     return () => window.clearTimeout(timeout);
   }, [router, step]);
 
-  function handleInfoSubmitted() {
-    publish(SessionEvent.CUSTOMER_INFO_SUBMITTED, { sessionId });
+  function handleInfoSubmitted(info: CustomerInfoInput) {
+    void publish(SessionEvent.CUSTOMER_INFO_SUBMITTED, { sessionId, ...info });
     setStep("services");
   }
 
-  function handleOrderConfirmed(finalTotal: number) {
+  async function handleOrderConfirmed(finalTotal: number) {
     setTotal(finalTotal);
-    publish(SessionEvent.ORDER_CONFIRMED, { orderId: order.id, total: finalTotal });
-    void fetch(`/api/sessions/${sessionId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "complete" }),
-    })
-      .then(() => {
-        publish(SessionEvent.SESSION_COMPLETED, { sessionId, orderId: order.id });
-      })
-      .catch(() => undefined);
-    setStep("confirmed");
+    await publish(SessionEvent.ORDER_CONFIRMED, { orderId: order.id, total: finalTotal });
+
+    try {
+      await fetch(`/api/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete" }),
+      });
+      await publish(SessionEvent.SESSION_COMPLETED, { sessionId, orderId: order.id });
+    } catch {
+      // The order was already confirmed; keep the customer flow moving.
+    } finally {
+      setStep("confirmed");
+    }
   }
 
   const items = order.order_items ?? [];

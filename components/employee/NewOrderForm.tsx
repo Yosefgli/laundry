@@ -18,6 +18,8 @@ const schema = z.object({
   weightKg: z.number({ invalid_type_error: "Enter a number" }).positive().max(999),
 });
 
+const HANDOFF_BROADCAST_TIMEOUT_MS = 1500;
+
 type FormData = z.infer<typeof schema>;
 
 interface NewOrderFormProps {
@@ -73,19 +75,23 @@ export function NewOrderForm({
   }, [customerDeviceId, supabase]);
 
   async function sendSessionStarted(channel: RealtimeChannel, payload: SessionStartedPayload) {
-    await channel.send({
-      type: "broadcast",
-      event: SessionEvent.SESSION_STARTED,
-      payload: makeEnvelope(SessionEvent.SESSION_STARTED, payload),
-    });
+    const result = await channel
+      .send({
+        type: "broadcast",
+        event: SessionEvent.SESSION_STARTED,
+        payload: makeEnvelope(SessionEvent.SESSION_STARTED, payload),
+      }, { timeout: HANDOFF_BROADCAST_TIMEOUT_MS })
+      .catch(() => "error" as const);
+
+    return result === "ok";
   }
 
   async function publishSessionStarted(payload: SessionStartedPayload) {
-    if (!payload.customerDeviceId) return;
+    if (!payload.customerDeviceId) return false;
 
     if (handoffReadyRef.current && handoffChannelRef.current) {
-      await sendSessionStarted(handoffChannelRef.current, payload);
-      return;
+      const delivered = await sendSessionStarted(handoffChannelRef.current, payload);
+      if (delivered) return true;
     }
 
     const channel = supabase.channel(customerDeviceChannelName(payload.customerDeviceId), {
@@ -93,29 +99,31 @@ export function NewOrderForm({
     });
     let completed = false;
 
-    await new Promise<void>((resolve) => {
-      const done = () => {
+    const delivered = await new Promise<boolean>((resolve) => {
+      const done = (sent: boolean) => {
         if (completed) return;
         completed = true;
-        resolve();
+        resolve(sent);
       };
-      const timeout = window.setTimeout(done, 1200);
+      const timeout = window.setTimeout(() => done(false), HANDOFF_BROADCAST_TIMEOUT_MS);
 
       channel.subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
           window.clearTimeout(timeout);
-          await sendSessionStarted(channel, payload);
-          done();
+          if (completed) return;
+          const sent = await sendSessionStarted(channel, payload);
+          done(sent);
         }
 
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
           window.clearTimeout(timeout);
-          done();
+          done(false);
         }
       });
     });
 
     await supabase.removeChannel(channel);
+    return delivered;
   }
 
   async function onSubmit(data: FormData) {
@@ -151,7 +159,7 @@ export function NewOrderForm({
       const sessionJson = await sessionRes.json();
       if (!sessionJson.data) throw new Error(sessionJson.error ?? t["common.error"]);
 
-      void publishSessionStarted({
+      await publishSessionStarted({
         sessionId: sessionJson.data.id,
         orderId,
         customerDeviceId: sessionJson.data.customer_device_id ?? customerDeviceId,

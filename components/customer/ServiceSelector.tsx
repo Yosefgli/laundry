@@ -22,7 +22,7 @@ interface ServiceSelectorProps {
   initialItems: Array<{ id: string; weightKg: number }>;
   translations: Record<string, string>;
   locale: Locale;
-  onConfirmed: (total: number) => void;
+  onConfirmed: (total: number) => void | Promise<void>;
 }
 
 export function ServiceSelector({
@@ -98,7 +98,7 @@ export function ServiceSelector({
         body: JSON.stringify({ status: "confirmed" }),
       });
 
-      onConfirmed(liveTotal);
+      await onConfirmed(liveTotal);
     } finally {
       setSubmitting(false);
     }
