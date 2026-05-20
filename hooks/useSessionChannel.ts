@@ -16,14 +16,18 @@ const BROADCAST_TIMEOUT_MS = 1500;
 
 interface UseSessionChannelOptions {
   sessionId: string;
+  role?: "employee" | "customer";
   onEvent?: (envelope: BroadcastEnvelope) => void;
   onStateChange?: (state: ConnectionState) => void;
+  onPresenceChange?: (hasEmployee: boolean) => void;
 }
 
 export function useSessionChannel({
   sessionId,
+  role,
   onEvent,
   onStateChange,
+  onPresenceChange,
 }: UseSessionChannelOptions) {
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   if (!supabaseRef.current) {
@@ -33,6 +37,8 @@ export function useSessionChannel({
   const channelRef = useRef<RealtimeChannel | null>(null);
   const onEventRef = useRef(onEvent);
   const onStateChangeRef = useRef(onStateChange);
+  const onPresenceChangeRef = useRef(onPresenceChange);
+  const roleRef = useRef(role);
   const retriesRef = useRef(0);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const connectionStateRef = useRef<ConnectionState>("connecting");
@@ -42,7 +48,8 @@ export function useSessionChannel({
   useEffect(() => {
     onEventRef.current = onEvent;
     onStateChangeRef.current = onStateChange;
-  }, [onEvent, onStateChange]);
+    onPresenceChangeRef.current = onPresenceChange;
+  }, [onEvent, onStateChange, onPresenceChange]);
 
   const updateState = useCallback(
     (s: ConnectionState) => {
@@ -112,6 +119,17 @@ export function useSessionChannel({
       );
     });
 
+    if (roleRef.current) {
+      const firePresence = () => {
+        const state = ch.presenceState<{ role?: string }>();
+        const hasEmployee = Object.values(state).flat().some((p) => p.role === "employee");
+        onPresenceChangeRef.current?.(hasEmployee);
+      };
+      ch.on("presence", { event: "sync" }, firePresence);
+      ch.on("presence", { event: "join" }, firePresence);
+      ch.on("presence", { event: "leave" }, firePresence);
+    }
+
     channelRef.current = ch;
 
     ch.subscribe((status) => {
@@ -122,6 +140,9 @@ export function useSessionChannel({
         stopPolling();
         updateState("connected");
         resolveReadyWaiters(ch);
+        if (roleRef.current) {
+          void ch.track({ role: roleRef.current });
+        }
       } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
         const retries = ++retriesRef.current;
         if (retries >= 5) {

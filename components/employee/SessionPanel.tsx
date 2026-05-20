@@ -122,6 +122,7 @@ export function SessionPanel({
 
   const { publish } = useSessionChannel({
     sessionId,
+    role: "employee",
     onEvent: handleEvent,
   });
 

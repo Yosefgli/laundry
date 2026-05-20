@@ -28,3 +28,5 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 - 2026-05-19: Rendered active customer session directly from realtime handoff payload to avoid slow dynamic route navigation.
 - 2026-05-19: Added optimistic customer handoff before session API completion, with ready-state reconciliation.
 - 2026-05-20: Optimized employee-to-customer realtime handoff with pre-API optimistic broadcast and ready-state reconciliation.
+
+- 2026-05-20: 5 customer-side fixes — session auto-close via Presence (grace 15s), multi-select laundry type, completed-bags indicator on service selection, bottom padding on confirm button, full-screen celebration overlay.

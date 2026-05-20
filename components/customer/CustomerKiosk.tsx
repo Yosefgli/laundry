@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CustomerInfoForm } from "@/components/customer/CustomerInfoForm";
 import { DegradedModeBanner, ReconnectingBanner } from "@/components/ui/DegradedModeBanner";
@@ -49,7 +49,7 @@ type BagState = {
   weightKg: number;
   serviceTypeId?: string;
   serviceCode?: string;
-  colorType?: BagColorType;
+  colorType?: string;
   lineTotal?: number;
 };
 
@@ -65,6 +65,7 @@ interface CustomerKioskProps {
 }
 
 const CELEBRATION_RETURN_DELAY_MS = 8000;
+const TERMINAL_STEPS: KioskWorkflowStep[] = ["order_confirmed", "cancelled", "completed"];
 
 export function CustomerKiosk({
   sessionId,
@@ -79,6 +80,8 @@ export function CustomerKiosk({
   const [step, setStep] = useState<KioskWorkflowStep>(
     initialWorkflowStep as KioskWorkflowStep ?? "customer_info"
   );
+  const stepRef = useRef<KioskWorkflowStep>(initialWorkflowStep as KioskWorkflowStep ?? "customer_info");
+  const employeeGraceTimerRef = useRef<number | null>(null);
   const [pendingItemId, setPendingItemId] = useState<string | null>(initialPendingItemId);
   const [bags, setBags] = useState<BagState[]>(
     (order.order_items ?? []).map((item) => ({
@@ -87,21 +90,42 @@ export function CustomerKiosk({
       weightKg: Number(item.weight_kg),
       serviceTypeId: item.order_item_services?.[0]?.service_type_id,
       serviceCode: item.order_item_services?.[0]?.service_type?.code,
-      colorType: item.color_type as BagColorType | undefined,
+      colorType: item.color_type ?? undefined,
       lineTotal: item.order_item_services?.[0]?.line_total,
     }))
   );
   const [orderTotal, setOrderTotal] = useState(order.total_amount ?? 0);
   const [connState, setConnState] = useState<"connecting" | "connected" | "reconnecting" | "degraded" | "error">("connecting");
   const [selectedServiceId, setSelectedServiceId] = useState<string>("");
-  const [selectedColor, setSelectedColor] = useState<BagColorType | "">("");
+  const [selectedColors, setSelectedColors] = useState<BagColorType[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
   const dir = isRTL(locale) ? "rtl" : "ltr";
 
+  const handlePresenceChange = useCallback((hasEmployee: boolean) => {
+    if (TERMINAL_STEPS.includes(stepRef.current)) return;
+    if (!hasEmployee) {
+      if (!employeeGraceTimerRef.current) {
+        employeeGraceTimerRef.current = window.setTimeout(() => {
+          employeeGraceTimerRef.current = null;
+          setStep((s) => (TERMINAL_STEPS.includes(s) ? s : "cancelled"));
+        }, 15000);
+      }
+    } else {
+      if (employeeGraceTimerRef.current) {
+        clearTimeout(employeeGraceTimerRef.current);
+        employeeGraceTimerRef.current = null;
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleEvent = useCallback(
     (envelope: { type: SessionEvent; payload: unknown }) => {
       if (envelope.type === SessionEvent.SESSION_CANCELLED) {
+        if (employeeGraceTimerRef.current) {
+          clearTimeout(employeeGraceTimerRef.current);
+          employeeGraceTimerRef.current = null;
+        }
         setStep("cancelled");
       }
       if (envelope.type === SessionEvent.EMPLOYEE_BAG_WEIGHT_ENTERED) {
@@ -112,7 +136,7 @@ export function CustomerKiosk({
           return [...prev, { id: p.itemId, bagNumber: p.bagNumber, weightKg: p.weightKg }];
         });
         setSelectedServiceId("");
-        setSelectedColor("");
+        setSelectedColors([]);
         setStep("bag_service_selection");
       }
     },
@@ -121,9 +145,21 @@ export function CustomerKiosk({
 
   const { publish } = useSessionChannel({
     sessionId,
+    role: "customer",
     onEvent: handleEvent,
     onStateChange: setConnState,
+    onPresenceChange: handlePresenceChange,
   });
+
+  // Keep stepRef in sync for presence handler
+  useEffect(() => { stepRef.current = step; }, [step]);
+
+  // Cleanup grace timer on unmount
+  useEffect(() => {
+    return () => {
+      if (employeeGraceTimerRef.current) clearTimeout(employeeGraceTimerRef.current);
+    };
+  }, []);
 
   // Return to price list after celebration
   useEffect(() => {
@@ -138,15 +174,25 @@ export function CustomerKiosk({
     return () => window.clearTimeout(timeout);
   }, [onReturnToPriceList, router, step]);
 
+  // Auto-return to price list after cancelled state
+  useEffect(() => {
+    if (step !== "cancelled") return;
+    const timeout = window.setTimeout(() => {
+      if (onReturnToPriceList) onReturnToPriceList();
+      else router.replace("/customer");
+    }, 4000);
+    return () => window.clearTimeout(timeout);
+  }, [onReturnToPriceList, router, step]);
+
   async function handleInfoSubmitted(info: CustomerInfoInput) {
     void publish(SessionEvent.CUSTOMER_INFO_SUBMITTED, { sessionId, ...info });
     setSelectedServiceId("");
-    setSelectedColor("");
+    setSelectedColors([]);
     setStep("bag_service_selection");
   }
 
   async function handleBagServiceConfirm() {
-    if (!selectedServiceId || !selectedColor || !pendingItemId) return;
+    if (!selectedServiceId || selectedColors.length === 0 || !pendingItemId) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/orders/${order.id}`, {
@@ -156,7 +202,7 @@ export function CustomerKiosk({
           action: "confirm_bag_service",
           itemId: pendingItemId,
           serviceTypeId: selectedServiceId,
-          colorType: selectedColor,
+          colorType: selectedColors,
         }),
       });
       const json = await res.json();
@@ -164,12 +210,13 @@ export function CustomerKiosk({
 
       const serviceCode = json.data.serviceCode as string;
       const lineTotal = json.data.lineTotal as number;
+      const colorType = (json.data.item as { color_type: string }).color_type;
       const newTotal = (json.data.order as { total_amount: number }).total_amount;
 
       setBags((prev) =>
         prev.map((b) =>
           b.id === pendingItemId
-            ? { ...b, serviceTypeId: selectedServiceId, serviceCode, colorType: selectedColor as BagColorType, lineTotal }
+            ? { ...b, serviceTypeId: selectedServiceId, serviceCode, colorType, lineTotal }
             : b
         )
       );
@@ -181,7 +228,7 @@ export function CustomerKiosk({
         bagNumber: bags.find((b) => b.id === pendingItemId)?.bagNumber ?? 1,
         serviceTypeId: selectedServiceId,
         serviceCode,
-        colorType: selectedColor,
+        colorType,
         lineTotal,
       });
 
@@ -285,7 +332,7 @@ export function CustomerKiosk({
 
         {/* ── Step: bag service selection ─────────────────────────── */}
         {step === "bag_service_selection" && pendingBag && (
-          <div className="space-y-5">
+          <div className="space-y-5 pb-24">
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
               <div className="text-sm font-semibold text-brand-600 mb-1">
                 {t["customer.bag"]} {pendingBag.bagNumber}
@@ -294,6 +341,21 @@ export function CustomerKiosk({
                 {formatWeight(pendingBag.weightKg, locale, t["unit.kg"])}
               </div>
             </div>
+
+            {/* Completed bags indicator */}
+            {completedBags.length > 0 && (
+              <div className="flex gap-2 flex-wrap">
+                {completedBags.map((bag) => (
+                  <div
+                    key={bag.id}
+                    className="bg-brand-50 border border-brand-200 rounded-2xl px-3 py-2 text-xs font-semibold text-brand-700"
+                  >
+                    {t["customer.bag"]} {bag.bagNumber}
+                    {bag.serviceCode ? ` · ${t[`service.${bag.serviceCode}`] ?? bag.serviceCode}` : ""}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Service type */}
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 space-y-3">
@@ -337,12 +399,18 @@ export function CustomerKiosk({
                     colorful: "bg-gradient-to-br from-pink-400 via-yellow-300 to-blue-400",
                     dark: "bg-gray-800",
                   };
-                  const selected = selectedColor === color;
+                  const selected = selectedColors.includes(color);
                   return (
                     <button
                       key={color}
                       type="button"
-                      onClick={() => setSelectedColor(color)}
+                      onClick={() =>
+                        setSelectedColors((prev) =>
+                          prev.includes(color)
+                            ? prev.filter((c) => c !== color)
+                            : [...prev, color]
+                        )
+                      }
                       className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${
                         selected
                           ? "border-brand-600 bg-brand-50"
@@ -362,7 +430,7 @@ export function CustomerKiosk({
             <Button
               size="xl"
               className="w-full"
-              disabled={!selectedServiceId || !selectedColor}
+              disabled={!selectedServiceId || selectedColors.length === 0}
               loading={submitting}
               onClick={handleBagServiceConfirm}
             >
@@ -384,7 +452,9 @@ export function CustomerKiosk({
                   </div>
                   <div className="text-sm text-gray-500 mt-0.5">
                     {bag.serviceCode ? (t[`service.${bag.serviceCode}`] ?? bag.serviceCode) : ""}
-                    {bag.colorType ? ` · ${t[`color.${bag.colorType}`] ?? bag.colorType}` : ""}
+                    {bag.colorType
+                      ? ` · ${bag.colorType.split(",").map((c) => t[`color.${c}`] ?? c).join(", ")}`
+                      : ""}
                   </div>
                 </div>
                 <div className="text-brand-700 font-bold">
@@ -434,60 +504,8 @@ export function CustomerKiosk({
           </div>
         )}
 
-        {/* ── Step: celebration ───────────────────────────────────── */}
-        {step === "order_confirmed" && (
-          <div className="relative overflow-hidden bg-gradient-to-b from-brand-50 to-white rounded-3xl border border-brand-100 shadow-sm p-10 text-center space-y-5 min-h-[400px]">
-            {/* Bubbles */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              {Array.from({ length: 18 }).map((_, i) => {
-                const size = 20 + (i % 5) * 12;
-                const left = (i * 37 + 5) % 95;
-                const delay = (i * 0.4) % 3.5;
-                const duration = 3 + (i % 4);
-                return (
-                  <div
-                    key={i}
-                    className="absolute rounded-full opacity-30"
-                    style={{
-                      width: size,
-                      height: size,
-                      left: `${left}%`,
-                      bottom: "-20%",
-                      background: `hsl(${180 + i * 15}, 70%, 65%)`,
-                      animationName: "bubbleFloat",
-                      animationDuration: `${duration}s`,
-                      animationDelay: `${delay}s`,
-                      animationTimingFunction: "ease-in-out",
-                      animationIterationCount: "infinite",
-                    }}
-                  />
-                );
-              })}
-            </div>
-
-            <div className="relative z-10 space-y-5">
-              <div className="mx-auto w-24 h-24 bg-brand-500 rounded-full flex items-center justify-center shadow-lg">
-                <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
-                  <path d="M5 13l4 4L19 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-
-              <div className="inline-block bg-white border-2 border-brand-200 rounded-2xl px-6 py-3 shadow-sm">
-                <span className="text-3xl font-black text-brand-700">{order.order_number}</span>
-              </div>
-
-              <h2 className="text-2xl font-black text-gray-900">{shopName}</h2>
-
-              <div className="text-xl font-bold text-gray-700">
-                {formatCurrency(orderTotal, locale)}
-              </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 text-amber-800 font-semibold text-sm">
-                {t["print.pay_at_store"] ?? "יש לגשת לחנות לביצוע התשלום"}
-              </div>
-            </div>
-          </div>
-        )}
+        {/* ── Step: celebration (placeholder in flow — actual overlay rendered below) */}
+        {step === "order_confirmed" && <div />}
 
         {/* ── Step: cancelled ─────────────────────────────────────── */}
         {step === "cancelled" && (
@@ -502,6 +520,60 @@ export function CustomerKiosk({
           </div>
         )}
       </main>
+
+      {/* ── Full-screen celebration overlay ─────────────────────── */}
+      {step === "order_confirmed" && (
+        <div className="fixed inset-0 z-50 bg-gradient-to-b from-brand-50 to-white flex flex-col items-center justify-center overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none">
+            {Array.from({ length: 24 }).map((_, i) => {
+              const size = 18 + (i % 6) * 14;
+              const left = (i * 31 + 3) % 97;
+              const delay = (i * 0.35) % 4;
+              const duration = 3 + (i % 5);
+              return (
+                <div
+                  key={i}
+                  className="absolute rounded-full opacity-35"
+                  style={{
+                    width: size,
+                    height: size,
+                    left: `${left}%`,
+                    bottom: "-15%",
+                    background: `hsl(${170 + i * 13}, 65%, 62%)`,
+                    animationName: "bubbleFloat",
+                    animationDuration: `${duration}s`,
+                    animationDelay: `${delay}s`,
+                    animationTimingFunction: "ease-in-out",
+                    animationIterationCount: "infinite",
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          <div className="relative z-10 flex flex-col items-center gap-5 px-8 text-center">
+            <div className="w-28 h-28 bg-brand-500 rounded-full flex items-center justify-center shadow-xl">
+              <svg width="52" height="52" viewBox="0 0 24 24" fill="none">
+                <path d="M5 13l4 4L19 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+
+            <div className="inline-block bg-white border-2 border-brand-200 rounded-2xl px-8 py-4 shadow-sm">
+              <span className="text-4xl font-black text-brand-700">{order.order_number}</span>
+            </div>
+
+            <h2 className="text-3xl font-black text-gray-900">{shopName}</h2>
+
+            <div className="text-2xl font-bold text-gray-700">
+              {formatCurrency(orderTotal, locale)}
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-4 text-amber-800 font-semibold">
+              {t["print.pay_at_store"] ?? "יש לגשת לחנות לביצוע התשלום"}
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes bubbleFloat {

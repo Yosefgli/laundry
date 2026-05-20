@@ -199,10 +199,10 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
         return NextResponse.json({ data: null, error: parsed.error.flatten() }, { status: 400 });
       }
 
-      // Update the item's color_type
+      // Update the item's color_type (stored as comma-separated values for multi-select)
       const { error: itemUpdateError } = await supabase
         .from("order_items")
-        .update({ color_type: parsed.data.colorType })
+        .update({ color_type: parsed.data.colorType as "white" | "colorful" | "dark" })
         .eq("id", parsed.data.itemId)
         .eq("order_id", id);
 

@@ -96,7 +96,7 @@ export interface BagServiceConfirmedPayload {
   bagNumber: number;
   serviceTypeId: string;
   serviceCode: string;
-  colorType: BagColorType;
+  colorType: string;
   lineTotal: number;
 }
 
