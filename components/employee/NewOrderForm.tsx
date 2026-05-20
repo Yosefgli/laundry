@@ -140,6 +140,16 @@ export function NewOrderForm({
 
       const order = sessionJson.data.order;
 
+      const firstItems: Array<{ id: string; weight_kg: number; bag_number: number; color_type: string | null }> =
+        (order?.order_items ?? []).map((item: { id: string; weight_kg: number; bag_number?: number }) => ({
+          id: item.id,
+          weight_kg: Number(item.weight_kg),
+          bag_number: item.bag_number ?? 1,
+          color_type: null,
+        }));
+
+      const pendingItemId: string | null = firstItems[0]?.id ?? null;
+
       void initialHandoff;
       await publishSessionStarted({
         sessionId: sessionJson.data.id,
@@ -149,6 +159,8 @@ export function NewOrderForm({
         orderNumber: order?.order_number,
         totalWeightKg: Number(order?.total_weight_kg ?? data.weightKg),
         isReady: true,
+        pendingItemId,
+        orderItems: firstItems,
       });
 
       onCreated(orderId, sessionJson.data.id);

@@ -1,8 +1,10 @@
 - Add direct IP/HTTP network print trigger for Epson thermal printers (bypass browser print dialog)
 - Incident management UI in admin panel
+- Customer screen: show order history for returning customer (after phone lookup feature)
+- EAN-13 payment barcode: support multiple prefixes per price range (e.g. different prefix for >500 THB)
 - Employee-facing order history search / filter by date range
 - Push notifications to employee tablet when customer confirms order
-- Multi-bag weight entry by employee (split weight across bags)
+- ~~Multi-bag weight entry by employee (split weight across bags)~~ ✓ done
 - Refund workflow with partial refund support
 - PDF export of receipt via react-pdf
 - Offline-first PWA mode with service worker for scanner page
@@ -10,3 +12,4 @@
 - Barcode scanner dedicated page with fullscreen kiosk lock
 - Workstation PIN protection for employee screen
 - Time-based pricing (rush hours surcharge via system_settings)
+- Add realtime handoff latency instrumentation from employee submit to customer form render

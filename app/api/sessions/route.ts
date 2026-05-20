@@ -16,10 +16,12 @@ export async function POST(request: NextRequest) {
     }
 
     let orderId = parsed.data.orderId;
+    let firstItemId: string | null = null;
     let orderForResponse: {
       id: string;
       order_number: string;
       total_weight_kg: number;
+      order_items?: Array<{ id: string; weight_kg: number; bag_number: number }>;
     } | null = null;
     const auditWrites: Array<Promise<void>> = [];
 
@@ -46,10 +48,28 @@ export async function POST(request: NextRequest) {
       }
 
       orderId = order.id;
+
+      // Create the first order_item immediately so pending_item_id can be set on the session
+      const { data: firstItem, error: itemError } = await supabase
+        .from("order_items")
+        .insert({ order_id: order.id, weight_kg: parsed.data.weightKg, bag_number: 1 })
+        .select("id, weight_kg, bag_number")
+        .single();
+
+      if (itemError || !firstItem) {
+        return NextResponse.json(
+          { data: null, error: itemError?.message ?? "Failed to create order item" },
+          { status: 500 }
+        );
+      }
+
+      firstItemId = firstItem.id;
+
       orderForResponse = {
         id: order.id,
         order_number: order.order_number,
         total_weight_kg: Number(order.total_weight_kg),
+        order_items: [firstItem],
       };
 
       auditWrites.push(
@@ -79,6 +99,7 @@ export async function POST(request: NextRequest) {
         pairing_code_expires: null,
         status: "active",
         workflow_step: "customer_info",
+        pending_item_id: firstItemId,
       })
       .select()
       .single();

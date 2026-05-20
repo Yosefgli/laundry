@@ -176,17 +176,19 @@ export function CustomerPriceDisplay({
     return (
       <CustomerKiosk
         sessionId={activeSession.sessionId}
+        initialWorkflowStep={activeSession.workflowStep ?? "customer_info"}
+        pendingItemId={activeSession.pendingItemId ?? null}
         order={{
           id: activeSession.orderId,
           order_number: activeSession.orderNumber ?? "",
           status: "weighed",
           total_weight_kg: activeSession.totalWeightKg,
-          order_items: [{ id: "bag-0", weight_kg: activeSession.totalWeightKg }],
+          total_amount: 0,
+          order_items: activeSession.orderItems ?? [],
         }}
         serviceTypes={serviceTypes}
         translations={t}
         locale={locale}
-        isReady={activeSession.isReady !== false}
         onReturnToPriceList={() => {
           openedSessionRef.current = null;
           setActiveSession(null);

@@ -23,10 +23,14 @@ async function getSessionData(sessionId: string) {
   const { data } = await supabase
     .from("sessions")
     .select(`
-      id, status, workflow_step, order_id,
+      id, status, workflow_step, order_id, pending_item_id,
       order:orders(
         id, employee_id, order_number, status, total_weight_kg,
-        order_items(id, weight_kg, notes)
+        total_amount, subtotal,
+        order_items(
+          id, weight_kg, notes, bag_number, color_type,
+          order_item_services(*, service_type:service_types(id, code))
+        )
       )
     `)
     .eq("id", sessionId)
@@ -69,16 +73,44 @@ export default async function CustomerSessionPage({ params }: RouteProps) {
   const order = Array.isArray(session.order) ? session.order[0] : session.order;
   if (!order || order.employee_id !== employee.id) notFound();
 
-  // If no items yet, synthesise one bag from the order weight for the customer to assign services
-  const initialItems =
-    order?.order_items && order.order_items.length > 0
-      ? order.order_items
-      : [{ id: "bag-0", weight_kg: order?.total_weight_kg ?? 0 }];
+  const normalizeItems = (raw: unknown): Array<{
+    id: string; weight_kg: number; notes?: string | null;
+    bag_number: number; color_type: string | null;
+    order_item_services?: Array<{ id: string; service_type_id: string; line_total: number; service_type?: { id: string; code: string } | null }>;
+  }> => {
+    if (!raw || !Array.isArray(raw)) return [];
+    return raw.map((item: Record<string, unknown>) => ({
+      id: item.id as string,
+      weight_kg: Number(item.weight_kg),
+      notes: item.notes as string | null,
+      bag_number: (item.bag_number as number | undefined) ?? 1,
+      color_type: (item.color_type as string | null) ?? null,
+      order_item_services: Array.isArray(item.order_item_services)
+        ? (item.order_item_services as Array<Record<string, unknown>>).map((s) => ({
+            id: s.id as string,
+            service_type_id: s.service_type_id as string,
+            line_total: Number(s.line_total),
+            service_type: s.service_type as { id: string; code: string } | null,
+          }))
+        : [],
+    }));
+  };
+
+  const orderItems = normalizeItems(order.order_items);
 
   return (
     <CustomerKiosk
       sessionId={sessionId}
-      order={{ ...order, order_items: initialItems }}
+      initialWorkflowStep={(session.workflow_step ?? "customer_info") as string}
+      pendingItemId={(session as Record<string, unknown>).pending_item_id as string | null}
+      order={{
+        id: order.id,
+        order_number: order.order_number,
+        status: order.status,
+        total_weight_kg: Number(order.total_weight_kg),
+        total_amount: Number((order as Record<string, unknown>).total_amount ?? 0),
+        order_items: orderItems,
+      }}
       serviceTypes={serviceTypes}
       translations={translations}
       locale={locale}

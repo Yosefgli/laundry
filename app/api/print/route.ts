@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { requireEmployee } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n/server";
 import { formatCurrency, formatWeight, localeToIntl } from "@/lib/i18n";
+import { buildEan13 } from "@/lib/barcode";
 
 const EPOS_WIDTH = 42; // characters at default font on 80mm paper
 
@@ -12,9 +13,10 @@ export async function POST(request: NextRequest) {
   try {
     const employee = await requireEmployee();
 
-    const { orderId, type = "combined" } = (await request.json()) as {
+    const { orderId, type = "combined", itemId } = (await request.json()) as {
       orderId: string;
       type?: "receipt" | "label" | "combined";
+      itemId?: string;
     };
 
     const supabase = createServiceClient();
@@ -58,13 +60,21 @@ export async function POST(request: NextRequest) {
     const shopAddress = process.env.NEXT_PUBLIC_SHOP_ADDRESS ?? "";
     const taxId = process.env.NEXT_PUBLIC_TAX_ID ?? "";
 
+    // Load EAN-13 prefix for payment barcode
+    const { data: ean13Setting } = await supabase
+      .from("system_settings")
+      .select("value")
+      .eq("key", "ean13_prefix")
+      .maybeSingle();
+    const ean13Prefix = (ean13Setting?.value ?? "").trim();
+
     if (printerIp) {
       // ─── ePOS-Print path (EPSON network printers) ────────────────────────
       // The Vercel server cannot reach private LAN IPs (192.168.x.x).
       // Return the XML to the browser so the tablet — which is on the local
       // network — can POST directly to the printer via lib/print-client.ts.
       const eposUrl = `http://${printerIp}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
-      const xml = buildEposXml({ type, order, t, locale, shopName, shopAddress, taxId });
+      const xml = buildEposXml({ type, order, t, locale, shopName, shopAddress, taxId, ean13Prefix, itemId });
       return NextResponse.json({ clientPrint: true, printerUrl: eposUrl, xml });
     }
 
@@ -79,12 +89,12 @@ export async function POST(request: NextRequest) {
 
     const receiptHtml =
       type === "receipt" || type === "combined"
-        ? buildReceiptHtml({ order, t, locale, shopName, shopAddress, taxId, qrDataUrl })
+        ? buildReceiptHtml({ order, t, locale, shopName, shopAddress, taxId, qrDataUrl, ean13Prefix })
         : "";
 
     const labelHtml =
       type === "label" || type === "combined"
-        ? buildLabelHtml({ order, t, locale, qrDataUrl })
+        ? buildLabelHtml({ order, t, locale, qrDataUrl, itemId })
         : "";
 
     const html = `<!DOCTYPE html>
@@ -162,6 +172,8 @@ function buildEposXml({
   shopName,
   shopAddress,
   taxId,
+  ean13Prefix,
+  itemId,
 }: {
   type: "receipt" | "label" | "combined";
   order: Record<string, unknown>;
@@ -170,14 +182,16 @@ function buildEposXml({
   shopName: string;
   shopAddress: string;
   taxId: string;
+  ean13Prefix: string;
+  itemId?: string;
 }): string {
   const parts: string[] = [];
 
   if (type === "receipt" || type === "combined") {
-    parts.push(buildEposReceipt({ order, t, locale, shopName, shopAddress, taxId }));
+    parts.push(buildEposReceipt({ order, t, locale, shopName, shopAddress, taxId, ean13Prefix }));
   }
   if (type === "label" || type === "combined") {
-    parts.push(buildEposLabel({ order, t, locale }));
+    parts.push(buildEposLabel({ order, t, locale, itemId }));
   }
 
   return `<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">${parts.join("")}</epos-print></s:Body></s:Envelope>`;
@@ -190,6 +204,7 @@ function buildEposReceipt({
   shopName,
   shopAddress,
   taxId,
+  ean13Prefix,
 }: {
   order: Record<string, unknown>;
   t: Record<string, string>;
@@ -197,6 +212,7 @@ function buildEposReceipt({
   shopName: string;
   shopAddress: string;
   taxId: string;
+  ean13Prefix: string;
 }): string {
   const loc = locale as "en" | "he" | "my";
   const isRtl = loc === "he";
@@ -212,12 +228,21 @@ function buildEposReceipt({
   const pr = (label: string, value: string) =>
     isRtl ? padRow(value, reverseRtl(stripBidi(label))) : padRow(label, value);
 
+  const colorLabels: Record<string, string> = {
+    white: t["color.white"] ?? "White",
+    colorful: t["color.colorful"] ?? "Colorful",
+    dark: t["color.dark"] ?? "Dark",
+  };
+
   const itemLines = items
     .map((item, idx) => {
       const services = (item.order_item_services as Array<Record<string, unknown>>) ?? [];
+      const bagNum = (item as Record<string, unknown>).bag_number ?? (idx + 1);
+      const colorType = (item as Record<string, unknown>).color_type as string | undefined;
+      const colorSuffix = colorType ? ` · ${colorLabels[colorType] ?? colorType}` : "";
       const bagHeader = isRtl
-        ? reverseRtl(`${t["customer.bag"]} ${idx + 1} — ${wt(Number(item.weight_kg))}`)
-        : `${t["customer.bag"]} ${idx + 1} — ${wt(Number(item.weight_kg))}`;
+        ? reverseRtl(`${t["customer.bag"]} ${bagNum}${colorSuffix} — ${wt(Number(item.weight_kg))}`)
+        : `${t["customer.bag"]} ${bagNum}${colorSuffix} — ${wt(Number(item.weight_kg))}`;
       const serviceLines = services
         .map((s) => {
           const code = (s.service_type as Record<string, string> | null)?.code ?? "";
@@ -247,6 +272,22 @@ function buildEposReceipt({
     `<text>${SEP}</text>`,
     `<barcode type="code128" align="center" width="3" height="100">{B}${String(order.order_number ?? "")}</barcode>`,
     `<text align="center">${esc(String(order.order_number ?? ""))}\n</text>`,
+    // EAN-13 payment barcode (store payment at counter)
+    ...(() => {
+      if (!ean13Prefix || !/^\d{7}$/.test(ean13Prefix)) return [];
+      try {
+        const ean13 = buildEan13(ean13Prefix, Math.round(Number(order.total_amount)));
+        const payMsg = t["print.pay_at_store"] ?? "Please go to the store to pay";
+        return [
+          `<text>${SEP}</text>`,
+          `<text align="center">${te(isRtl ? reverseRtl(stripBidi(payMsg)) : payMsg)}\n</text>`,
+          `<barcode type="ean13" align="center" width="3" height="80">${ean13}</barcode>`,
+          `<text align="center">${esc(ean13)}\n</text>`,
+        ];
+      } catch {
+        return [];
+      }
+    })(),
     `<feed line="3"/>`,
     `<cut type="feed"/>`,
   ].join("");
@@ -256,37 +297,52 @@ function buildEposLabel({
   order,
   t,
   locale,
+  itemId,
 }: {
   order: Record<string, unknown>;
   t: Record<string, string>;
   locale: string;
+  itemId?: string;
 }): string {
   const loc = locale as "en" | "he" | "my";
   const isRtl = loc === "he";
   const te = (s: string) => esc(isRtl ? reverseRtl(stripBidi(s)) : s);
-  const items = (order.order_items as Array<Record<string, unknown>>) ?? [];
-  const serviceCodes = items
-    .flatMap((i) =>
-      ((i.order_item_services as Array<Record<string, unknown>>) ?? []).map(
-        (s) => (s.service_type as Record<string, string> | null)?.code
-      )
-    )
-    .filter(Boolean) as string[];
-  const uniqueServices = [...new Set(serviceCodes)];
-  const servicesLabel = uniqueServices.map((s) => t[`service.${s}`] ?? s).join(" · ");
+  const allItems = (order.order_items as Array<Record<string, unknown>>) ?? [];
+
+  // If itemId provided, print only that bag; otherwise print all
+  const items = itemId ? allItems.filter((i) => i.id === itemId) : allItems;
+
+  const colorLabels: Record<string, string> = {
+    white: t["color.white"] ?? "White",
+    colorful: t["color.colorful"] ?? "Colorful",
+    dark: t["color.dark"] ?? "Dark",
+  };
+
   const date = new Date(order.created_at as string).toLocaleDateString(localeToIntl(loc));
 
-  return [
-    `<text align="center" width="2" height="2">${esc(String(order.order_number ?? ""))}\n</text>`,
-    `<barcode type="code128" align="center" width="3" height="100">{B}${String(order.order_number ?? "")}</barcode>`,
-    `<text align="center" width="1" height="1">${esc(String(order.order_number ?? ""))}\n</text>`,
-    order.customer_name ? `<text align="center">${te(String(order.customer_name))}\n</text>` : "",
-    servicesLabel ? `<text align="center">${te(servicesLabel)}\n</text>` : "",
-    order.customer_notes ? `<text align="center">${te(String(order.customer_notes))}\n</text>` : "",
-    `<text align="center">${esc(date)}\n</text>`,
-    `<feed line="3"/>`,
-    `<cut type="feed"/>`,
-  ].join("");
+  return items.map((item) => {
+    const bagNum = (item.bag_number as number | undefined) ?? 1;
+    const colorType = item.color_type as string | undefined;
+    const colorLabel = colorType ? colorLabels[colorType] ?? colorType : null;
+    const services = (item.order_item_services as Array<Record<string, unknown>>) ?? [];
+    const serviceCodes = services
+      .map((s) => (s.service_type as Record<string, string> | null)?.code)
+      .filter(Boolean) as string[];
+    const servicesLabel = serviceCodes.map((s) => t[`service.${s}`] ?? s).join(" · ");
+    const bagLabel = `${t["customer.bag"] ?? "Bag"} ${bagNum}${colorLabel ? ` · ${colorLabel}` : ""}`;
+
+    return [
+      `<text align="center" width="2" height="2">${esc(String(order.order_number ?? ""))}\n</text>`,
+      `<barcode type="code128" align="center" width="3" height="100">{B}${String(order.order_number ?? "")}</barcode>`,
+      `<text align="center" width="1" height="1">${esc(String(order.order_number ?? ""))}\n</text>`,
+      `<text align="center">${te(bagLabel)}\n</text>`,
+      order.customer_name ? `<text align="center">${te(String(order.customer_name))}\n</text>` : "",
+      servicesLabel ? `<text align="center">${te(servicesLabel)}\n</text>` : "",
+      `<text align="center">${esc(date)}\n</text>`,
+      `<feed line="3"/>`,
+      `<cut type="feed"/>`,
+    ].join("");
+  }).join("");
 }
 
 // ─── Legacy HTML builders (for non-ePOS print servers) ───────────────────────
@@ -299,6 +355,7 @@ function buildReceiptHtml({
   shopAddress,
   taxId,
   qrDataUrl,
+  ean13Prefix,
 }: {
   order: Record<string, unknown>;
   t: Record<string, string>;
@@ -307,11 +364,20 @@ function buildReceiptHtml({
   shopAddress: string;
   taxId: string;
   qrDataUrl: string;
+  ean13Prefix: string;
 }): string {
   const loc = locale as "en" | "he" | "my";
+  const colorLabels: Record<string, string> = {
+    white: t["color.white"] ?? "White",
+    colorful: t["color.colorful"] ?? "Colorful",
+    dark: t["color.dark"] ?? "Dark",
+  };
   const items = (order.order_items as Array<Record<string, unknown>>) ?? [];
   const itemsHtml = items
-    .map((item, idx) => {
+    .map((item) => {
+      const bagNum = (item.bag_number as number | undefined) ?? 1;
+      const colorType = item.color_type as string | undefined;
+      const colorSuffix = colorType ? ` · ${colorLabels[colorType] ?? colorType}` : "";
       const services = (item.order_item_services as Array<Record<string, unknown>>) ?? [];
       const servicesHtml = services
         .map((s) => {
@@ -319,9 +385,18 @@ function buildReceiptHtml({
           return `<div class="row xs"><span>${t[`service.${code}`] ?? code}</span><span>${formatCurrency(Number(s.line_total), loc)}</span></div>`;
         })
         .join("");
-      return `<div style="margin-bottom:3px"><div class="bold">${t["customer.bag"]} ${idx + 1} — ${formatWeight(Number(item.weight_kg), loc, t["unit.kg"])}</div>${servicesHtml}</div>`;
+      return `<div style="margin-bottom:3px"><div class="bold">${t["customer.bag"]} ${bagNum}${colorSuffix} — ${formatWeight(Number(item.weight_kg), loc, t["unit.kg"])}</div>${servicesHtml}</div>`;
     })
     .join("");
+
+  let ean13Html = "";
+  if (ean13Prefix && /^\d{7}$/.test(ean13Prefix)) {
+    try {
+      const ean13 = buildEan13(ean13Prefix, Math.round(Number(order.total_amount)));
+      const payMsg = t["print.pay_at_store"] ?? "Please go to the store to pay";
+      ean13Html = `<hr/><div class="center bold xs">${payMsg}</div><div class="center xs">${ean13}</div>`;
+    } catch { /* skip if price too large */ }
+  }
 
   return `<div class="page">
   <div class="center bold" style="font-size:12pt">${shopName}</div>
@@ -340,6 +415,7 @@ function buildReceiptHtml({
   <hr/>
   <div class="center"><img class="qr" src="${qrDataUrl}" alt="QR"/></div>
   <div class="center xs">${(order.id as string).slice(0, 8).toUpperCase()}</div>
+  ${ean13Html}
 </div>`;
 }
 
@@ -348,31 +424,42 @@ function buildLabelHtml({
   t,
   locale,
   qrDataUrl,
+  itemId,
 }: {
   order: Record<string, unknown>;
   t: Record<string, string>;
   locale: string;
   qrDataUrl: string;
+  itemId?: string;
 }): string {
   const loc = locale as "en" | "he" | "my";
-  const items = (order.order_items as Array<Record<string, unknown>>) ?? [];
-  const serviceCodes = items
-    .flatMap((i) =>
-      ((i.order_item_services as Array<Record<string, unknown>>) ?? []).map(
-        (s) => (s.service_type as Record<string, string> | null)?.code
-      )
-    )
-    .filter(Boolean) as string[];
-  const uniqueServices = [...new Set(serviceCodes)];
-  const servicesLabel = uniqueServices.map((s) => t[`service.${s}`] ?? s).join(" · ");
+  const allItems = (order.order_items as Array<Record<string, unknown>>) ?? [];
+  const items = itemId ? allItems.filter((i) => i.id === itemId) : allItems;
   const date = new Date(order.created_at as string).toLocaleDateString(localeToIntl(loc));
+  const colorLabels: Record<string, string> = {
+    white: t["color.white"] ?? "White",
+    colorful: t["color.colorful"] ?? "Colorful",
+    dark: t["color.dark"] ?? "Dark",
+  };
 
-  return `<div class="page center" style="font-size:12pt;font-weight:bold">
+  return items.map((item) => {
+    const bagNum = (item.bag_number as number | undefined) ?? 1;
+    const colorType = item.color_type as string | undefined;
+    const colorLabel = colorType ? colorLabels[colorType] ?? colorType : null;
+    const services = (item.order_item_services as Array<Record<string, unknown>>) ?? [];
+    const serviceCodes = services
+      .map((s) => (s.service_type as Record<string, string> | null)?.code)
+      .filter(Boolean) as string[];
+    const servicesLabel = serviceCodes.map((s) => t[`service.${s}`] ?? s).join(" · ");
+    const bagLabel = `${t["customer.bag"] ?? "Bag"} ${bagNum}${colorLabel ? ` · ${colorLabel}` : ""}`;
+
+    return `<div class="page center" style="font-size:12pt;font-weight:bold">
   <div style="font-size:20pt;font-weight:900;margin-bottom:6px">${order.order_number}</div>
   <div><img class="qr" style="width:140px;height:140px" src="${qrDataUrl}" alt="QR"/></div>
-  <div style="font-size:10pt;font-weight:bold;margin-top:4px">${order.customer_name ?? "—"}</div>
+  <div style="font-size:10pt;font-weight:bold;margin-top:4px">${bagLabel}</div>
+  ${order.customer_name ? `<div style="font-size:10pt;margin-top:2px">${order.customer_name}</div>` : ""}
   <div class="xs" style="margin-top:2px">${servicesLabel}</div>
-  ${order.customer_notes ? `<div class="xs" style="border-top:1px solid #000;margin-top:4px;padding-top:4px">${order.customer_notes}</div>` : ""}
   <div class="xs" style="margin-top:2px">${date}</div>
 </div>`;
+  }).join("");
 }

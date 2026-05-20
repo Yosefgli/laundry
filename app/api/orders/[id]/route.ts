@@ -8,6 +8,7 @@ import {
   AddOrderItemSchema,
   SetOrderWeightSchema,
   UpdateOrderDetailsSchema,
+  ConfirmBagServiceSchema,
 } from "@/lib/schemas/order";
 import { calculateItemPrice } from "@/lib/pricing";
 
@@ -190,6 +191,96 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
 
       void employee;
       return NextResponse.json({ data: { item, order: updatedOrder }, error: null });
+    }
+
+    if (action === "confirm_bag_service") {
+      const parsed = ConfirmBagServiceSchema.safeParse(body);
+      if (!parsed.success) {
+        return NextResponse.json({ data: null, error: parsed.error.flatten() }, { status: 400 });
+      }
+
+      // Update the item's color_type
+      const { error: itemUpdateError } = await supabase
+        .from("order_items")
+        .update({ color_type: parsed.data.colorType })
+        .eq("id", parsed.data.itemId)
+        .eq("order_id", id);
+
+      if (itemUpdateError) {
+        return NextResponse.json({ data: null, error: itemUpdateError.message }, { status: 500 });
+      }
+
+      // Fetch the active pricing rule for this service
+      const { data: rule } = await supabase
+        .from("pricing_rules")
+        .select("*, service_type:service_types(id, code)")
+        .eq("service_type_id", parsed.data.serviceTypeId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (!rule) {
+        return NextResponse.json({ data: null, error: "No active pricing rule found" }, { status: 400 });
+      }
+
+      // Fetch item weight
+      const { data: item } = await supabase
+        .from("order_items")
+        .select("id, weight_kg, bag_number")
+        .eq("id", parsed.data.itemId)
+        .single();
+
+      if (!item) {
+        return NextResponse.json({ data: null, error: "Item not found" }, { status: 404 });
+      }
+
+      const lineItem = calculateItemPrice(Number(item.weight_kg), {
+        serviceTypeId: rule.service_type_id,
+        serviceCode: (rule.service_type as { code: string } | null)?.code ?? "",
+        pricingRule: rule,
+      });
+
+      // Upsert the service association (idempotent if called twice)
+      const { error: serviceError } = await supabase
+        .from("order_item_services")
+        .upsert({
+          order_item_id: parsed.data.itemId,
+          service_type_id: parsed.data.serviceTypeId,
+          pricing_rule_id: rule.id,
+          price_per_kg: Number(rule.price_per_kg),
+          flat_fee: Number(rule.flat_fee),
+          line_total: lineItem.lineTotal,
+        }, { onConflict: "order_item_id,service_type_id" });
+
+      if (serviceError) {
+        return NextResponse.json({ data: null, error: serviceError.message }, { status: 500 });
+      }
+
+      // Advance order to "confirmed" status and update session step
+      await supabase.from("orders").update({ status: "confirmed" }).eq("id", id).in("status", ["draft", "weighed"]);
+
+      // Update session step to bag_summary + clear pending_item_id
+      await supabase
+        .from("sessions")
+        .update({ workflow_step: "bag_summary", pending_item_id: null })
+        .eq("order_id", id)
+        .eq("status", "active");
+
+      // Return refreshed order totals
+      const { data: updatedOrder } = await supabase
+        .from("orders")
+        .select("id, subtotal, tax_amount, total_amount, total_weight_kg, status")
+        .eq("id", id)
+        .single();
+
+      return NextResponse.json({
+        data: {
+          item: { id: item.id, weight_kg: item.weight_kg, bag_number: item.bag_number, color_type: parsed.data.colorType },
+          serviceCode: (rule.service_type as { code: string } | null)?.code ?? "",
+          lineTotal: lineItem.lineTotal,
+          order: updatedOrder,
+        },
+        error: null,
+      });
     }
 
     return NextResponse.json({ data: null, error: "Unknown action" }, { status: 400 });
