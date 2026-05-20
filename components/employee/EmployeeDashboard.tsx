@@ -92,6 +92,7 @@ export function EmployeeDashboard({
   const [view, setView] = useState<View>("dashboard");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [activeSessionStep, setActiveSessionStep] = useState<string>("customer_info");
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const [scanResult, setScanResult] = useState<Order | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -102,6 +103,7 @@ export function EmployeeDashboard({
   function handleOrderCreated(orderId: string, sessionId: string) {
     setActiveOrderId(orderId);
     setActiveSessionId(sessionId);
+    setActiveSessionStep("customer_info");
     fetchOrder(orderId);
     setView("active_session");
   }
@@ -364,6 +366,7 @@ export function EmployeeDashboard({
             <SessionPanel
               sessionId={activeSessionId}
               order={activeOrder}
+              initialWorkflowStep={activeSessionStep}
               translations={t}
               locale={locale}
               onStatusAdvanced={(s) => setActiveOrder((o) => o ? { ...o, status: s as Order["status"] } : o)}

@@ -49,10 +49,26 @@ export const UpdateOrderDetailsSchema = z.object({
   totalWeightKg: z.number().positive().max(999).optional(),
 });
 
+const BagColorEnum = z.enum(["white", "colorful", "dark"]);
+export const ConfirmBagServiceSchema = z.object({
+  itemId:        z.string().uuid(),
+  serviceTypeId: z.string().uuid(),
+  colorType:     z.union([
+    BagColorEnum,
+    z.array(BagColorEnum).min(1),
+  ]).transform((v) => Array.isArray(v) ? v.join(",") : v),
+});
+
+export const AddBagWeightSchema = z.object({
+  weightKg: z.number().positive().max(999),
+});
+
 export type CreateOrderInput        = z.infer<typeof CreateOrderSchema>;
 export type UpdateOrderStatusInput  = z.infer<typeof UpdateOrderStatusSchema>;
 export type UpdateOrderWeightInput  = z.infer<typeof UpdateOrderWeightSchema>;
 export type AddOrderItemInput       = z.infer<typeof AddOrderItemSchema>;
 export type CustomerInfoInput       = z.infer<typeof CustomerInfoSchema>;
 export type UpdateOrderDetailsInput = z.infer<typeof UpdateOrderDetailsSchema>;
+export type ConfirmBagServiceInput  = z.infer<typeof ConfirmBagServiceSchema>;
+export type AddBagWeightInput       = z.infer<typeof AddBagWeightSchema>;
 export { PHONE_COUNTRY_CODES, isSupportedPhoneCountryCode };

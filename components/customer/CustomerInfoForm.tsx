@@ -23,9 +23,16 @@ interface CustomerInfoFormProps {
   translations: Record<string, string>;
   locale: Locale;
   onSubmitted: (info: CustomerInfoInput) => void;
+  disabled?: boolean;
 }
 
-export function CustomerInfoForm({ orderId, translations: t, locale, onSubmitted }: CustomerInfoFormProps) {
+export function CustomerInfoForm({
+  orderId,
+  translations: t,
+  locale,
+  onSubmitted,
+  disabled = false,
+}: CustomerInfoFormProps) {
   const [loading, setLoading] = useState(false);
   const phoneCountryOptions = getPhoneCountryCodeOptions(locale);
 
@@ -40,6 +47,8 @@ export function CustomerInfoForm({ orderId, translations: t, locale, onSubmitted
   });
 
   async function onSubmit(data: CustomerInfoFormInput) {
+    if (disabled) return;
+
     setLoading(true);
     try {
       const localNumber = data.phoneNumber.replace(/\D/g, "").replace(/^0+/, "");
@@ -112,7 +121,7 @@ export function CustomerInfoForm({ orderId, translations: t, locale, onSubmitted
         error={errors.notes?.message}
         {...register("notes")}
       />
-      <Button type="submit" size="xl" loading={loading} className="w-full">
+      <Button type="submit" size="xl" loading={loading || disabled} className="w-full">
         {t["common.confirm"]}
       </Button>
     </form>

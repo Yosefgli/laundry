@@ -35,7 +35,9 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
     const supabase = createServiceClient();
 
     const body = await request.json().catch(() => ({}));
-    if (body.action !== "complete") {
+    const action = body.action as string;
+
+    if (!["complete", "request_add_bag"].includes(action)) {
       return NextResponse.json({ data: null, error: "Unknown action" }, { status: 400 });
     }
 
@@ -48,13 +50,29 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
     if (!session) {
       return NextResponse.json({ data: null, error: "Session not found" }, { status: 404 });
     }
-    if (session.status === "completed") {
+    if (session.status === "completed" && action === "complete") {
       return NextResponse.json({ data: session, error: null });
     }
     if (session.status !== "active") {
       return NextResponse.json({ data: null, error: "Session not active" }, { status: 409 });
     }
 
+    if (action === "request_add_bag") {
+      const { data: updatedSession, error } = await supabase
+        .from("sessions")
+        .update({ workflow_step: "waiting_for_weight", pending_item_id: null })
+        .eq("id", id)
+        .select("id, status, workflow_step")
+        .single();
+
+      if (error || !updatedSession) {
+        return NextResponse.json({ data: null, error: error?.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ data: updatedSession, error: null });
+    }
+
+    // action === "complete"
     const now = new Date().toISOString();
     const { data: updatedSession, error } = await supabase
       .from("sessions")

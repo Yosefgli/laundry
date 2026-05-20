@@ -1,3 +1,4 @@
+- 2026-05-20: Major workflow redesign — multi-bag customer flow (per-bag service+color selection, bag summary, add-bag loop), celebration screen with bubble animation, EAN-13 payment barcode on receipts with admin prefix config, auto-print label per bag on employee side, payment gate on delivery was already in place.
 - 2026-05-11: Full MVP scaffold — Next.js App Router, Supabase schema (4 migrations), RLS, realtime session channels, employee dashboard, customer kiosk, barcode/receipt printing, admin panel (orders, pricing, workstations, settings, translations, audit log).
 - 2026-05-11: Add global language switcher and automatic customer screen session detection.
 - 2026-05-11: fix: extract admin auth guard to requireAdmin() helper — resolves TypeScript "never" build error in all 8 admin subpages.
@@ -22,3 +23,10 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 - 2026-05-17: fix: restore align="center" directly on ePOS-Print <barcode> elements — <text align="center"/> workaround caused barcode to be omitted; align on barcode is valid and required per Epson spec
 - 2026-05-17: fix: restore {B} Code Set B prefix on ePOS-Print Code 128 barcodes — {B} is Epson ePOS-Print syntax (not bwip-js only); without it TM-m30III skips the barcode element entirely
 - 2026-05-17: fix: ScanInput strips leading/trailing non-alphanumeric chars from scanned barcode value — removes stray { } artifacts from ePOS-Print Code 128 while preserving middle characters like the hyphen in L-000042
+- 2026-05-19: Fixed realtime session handoff and customer-to-employee broadcast acknowledgement.
+- 2026-05-19: Collapsed employee order weight and session creation into one API call for faster customer screen handoff.
+- 2026-05-19: Rendered active customer session directly from realtime handoff payload to avoid slow dynamic route navigation.
+- 2026-05-19: Added optimistic customer handoff before session API completion, with ready-state reconciliation.
+- 2026-05-20: Optimized employee-to-customer realtime handoff with pre-API optimistic broadcast and ready-state reconciliation.
+
+- 2026-05-20: 5 customer-side fixes — session auto-close via Presence (grace 15s), multi-select laundry type, completed-bags indicator on service selection, bottom padding on confirm button, full-screen celebration overlay.

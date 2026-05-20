@@ -184,6 +184,8 @@ export type Database = {
           notes: string | null;
           subtotal: number;
           sort_order: number;
+          bag_number: number;
+          color_type: "white" | "colorful" | "dark" | null;
           created_at: string;
           updated_at: string;
         };
@@ -254,6 +256,7 @@ export type Database = {
           pairing_code_expires: string | null;
           status: "active" | "completed" | "cancelled" | "expired";
           workflow_step: string;
+          pending_item_id: string | null;
           completed_at: string | null;
           cancelled_at: string | null;
           created_at: string;

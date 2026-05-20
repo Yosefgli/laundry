@@ -8,7 +8,7 @@ export async function getActiveCustomerSessionForEmployee(employeeId: string) {
 
   const { data: orders } = await supabase
     .from("orders")
-    .select("id, order_number, status, created_at")
+    .select("id, order_number, status, total_weight_kg, created_at")
     .eq("employee_id", employeeId)
     .in("status", [...CUSTOMER_ENTRY_STATUSES])
     .order("created_at", { ascending: false })
@@ -47,6 +47,7 @@ export async function getActiveCustomerSessionForEmployee(employeeId: string) {
           id: order.id,
           orderNumber: order.order_number,
           status: order.status,
+          totalWeightKg: Number(order.total_weight_kg),
         }
       : null,
   };

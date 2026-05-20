@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency, isRTL, type Locale, type TranslationMap } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { CustomerKiosk } from "@/components/customer/CustomerKiosk";
 import {
   customerDeviceChannelName,
   SessionEvent,
@@ -25,7 +26,15 @@ interface CustomerPriceDisplayProps {
 }
 
 type ActiveSessionResponse = {
-  data: { id: string; customerDeviceId: string } | null;
+  data: {
+    id: string;
+    customerDeviceId: string;
+    order: {
+      id: string;
+      orderNumber: string;
+      totalWeightKg: number;
+    } | null;
+  } | null;
   error: string | null;
 };
 
@@ -42,14 +51,43 @@ export function CustomerPriceDisplay({
   const router = useRouter();
   const dir = isRTL(locale) ? "rtl" : "ltr";
   const openedSessionRef = useRef<string | null>(null);
+  const [activeSession, setActiveSession] = useState<SessionStartedPayload | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
 
-    function openSession(sessionId: string, deviceId = customerDeviceId) {
-      if (cancelled || openedSessionRef.current === sessionId) return;
+    function mergeSession(
+      previous: SessionStartedPayload | null,
+      next: SessionStartedPayload
+    ): SessionStartedPayload {
+      return {
+        ...previous,
+        ...next,
+        orderId: next.orderId || previous?.orderId || "",
+        workflowStep: next.workflowStep || previous?.workflowStep || "customer_info",
+        orderNumber: next.orderNumber ?? previous?.orderNumber,
+        totalWeightKg: next.totalWeightKg ?? previous?.totalWeightKg,
+        isReady: Boolean(previous?.isReady || next.isReady),
+      };
+    }
+
+    function openSession(session: SessionStartedPayload, deviceId = customerDeviceId) {
+      const sessionId = session.sessionId;
+      if (cancelled) return;
+
+      if (openedSessionRef.current === sessionId) {
+        setActiveSession((previous) => mergeSession(previous, session));
+        return;
+      }
+
       openedSessionRef.current = sessionId;
+
+      if (session.orderId && session.totalWeightKg !== undefined) {
+        setActiveSession(session);
+        return;
+      }
+
       router.replace(`/customer/${sessionId}?device=${encodeURIComponent(deviceId)}`);
     }
 
@@ -62,7 +100,7 @@ export function CustomerPriceDisplay({
         const session = envelope.payload ?? (payload as SessionStartedPayload);
         if (!session?.sessionId) return;
         if (session.customerDeviceId && session.customerDeviceId !== customerDeviceId) return;
-        openSession(session.sessionId, session.customerDeviceId);
+        openSession(session, session.customerDeviceId);
       })
       .on(
         "postgres_changes",
@@ -79,7 +117,15 @@ export function CustomerPriceDisplay({
             customer_device_id?: string | null;
           };
           if (session.status !== "active" || !session.id) return;
-          openSession(session.id, session.customer_device_id ?? customerDeviceId);
+          openSession(
+            {
+              sessionId: session.id,
+              orderId: "",
+              workflowStep: "customer_info",
+              customerDeviceId: session.customer_device_id ?? customerDeviceId,
+            },
+            session.customer_device_id ?? customerDeviceId
+          );
         }
       )
       .subscribe((status) => {
@@ -98,7 +144,18 @@ export function CustomerPriceDisplay({
 
         const json = (await res.json()) as ActiveSessionResponse;
         if (!cancelled && json.data?.id) {
-          openSession(json.data.id, json.data.customerDeviceId);
+          openSession(
+            {
+              sessionId: json.data.id,
+              orderId: json.data.order?.id ?? "",
+              orderNumber: json.data.order?.orderNumber,
+              totalWeightKg: json.data.order?.totalWeightKg,
+              workflowStep: "customer_info",
+              customerDeviceId: json.data.customerDeviceId,
+              isReady: Boolean(json.data.order),
+            },
+            json.data.customerDeviceId
+          );
         }
       } catch {
         // Keep the price list visible if the fallback check fails.
@@ -114,6 +171,31 @@ export function CustomerPriceDisplay({
       void supabase.removeChannel(channel);
     };
   }, [customerDeviceId, router]);
+
+  if (activeSession?.orderId && activeSession.totalWeightKg !== undefined) {
+    return (
+      <CustomerKiosk
+        sessionId={activeSession.sessionId}
+        initialWorkflowStep={activeSession.workflowStep ?? "customer_info"}
+        pendingItemId={activeSession.pendingItemId ?? null}
+        order={{
+          id: activeSession.orderId,
+          order_number: activeSession.orderNumber ?? "",
+          status: "weighed",
+          total_weight_kg: activeSession.totalWeightKg,
+          total_amount: 0,
+          order_items: activeSession.orderItems ?? [],
+        }}
+        serviceTypes={serviceTypes}
+        translations={t}
+        locale={locale}
+        onReturnToPriceList={() => {
+          openedSessionRef.current = null;
+          setActiveSession(null);
+        }}
+      />
+    );
+  }
 
   const activeServices = serviceTypes.filter((service) => service.is_active);
 

@@ -1,14 +1,18 @@
 export const enum SessionEvent {
   // Employee → Customer
-  SESSION_STARTED      = "session:started",
-  SESSION_CANCELLED    = "session:cancelled",
-  SESSION_COMPLETED    = "session:completed",
-  WORKFLOW_STEP_CHANGED = "session:workflow_step_changed",
+  SESSION_STARTED           = "session:started",
+  SESSION_CANCELLED         = "session:cancelled",
+  SESSION_COMPLETED         = "session:completed",
+  WORKFLOW_STEP_CHANGED     = "session:workflow_step_changed",
+  EMPLOYEE_BAG_WEIGHT_ENTERED = "employee:bag_weight_entered",
 
   // Customer → Employee
-  CUSTOMER_INFO_SUBMITTED  = "customer:info_submitted",
-  SERVICES_SELECTED        = "customer:services_selected",
-  ORDER_CONFIRMED          = "customer:order_confirmed",
+  CUSTOMER_INFO_SUBMITTED      = "customer:info_submitted",
+  SERVICES_SELECTED            = "customer:services_selected",
+  ORDER_CONFIRMED              = "customer:order_confirmed",
+  CUSTOMER_BAG_SERVICE_CONFIRMED = "customer:bag_service_confirmed",
+  CUSTOMER_ADD_BAG_REQUESTED   = "customer:add_bag_requested",
+  CUSTOMER_ORDER_FINALIZED     = "customer:order_finalized",
 
   // Bidirectional
   ORDER_STATUS_CHANGED  = "order:status_changed",
@@ -26,6 +30,11 @@ export interface SessionStartedPayload {
   orderId: string;
   customerDeviceId?: string;
   workflowStep: string;
+  orderNumber?: string;
+  totalWeightKg?: number;
+  isReady?: boolean;
+  pendingItemId?: string | null;
+  orderItems?: Array<{ id: string; weight_kg: number; bag_number: number; color_type: string | null }>;
 }
 
 export interface WorkflowStepChangedPayload {
@@ -63,6 +72,44 @@ export interface PriceUpdatedPayload {
   subtotal: number;
   taxAmount: number;
   total: number;
+}
+
+export type BagColorType = "white" | "colorful" | "dark";
+
+export type KioskWorkflowStep =
+  | "customer_info"
+  | "bag_service_selection"
+  | "bag_summary"
+  | "waiting_for_weight"
+  | "order_confirmed"
+  | "completed"
+  | "cancelled";
+
+export interface BagWeightEnteredPayload {
+  itemId: string;
+  bagNumber: number;
+  weightKg: number;
+}
+
+export interface BagServiceConfirmedPayload {
+  itemId: string;
+  bagNumber: number;
+  serviceTypeId: string;
+  serviceCode: string;
+  colorType: string;
+  lineTotal: number;
+}
+
+export interface AddBagRequestedPayload {
+  orderId: string;
+  bagsCompleted: number;
+}
+
+export interface OrderFinalizedPayload {
+  orderId: string;
+  orderNumber: string;
+  total: number;
+  bagCount: number;
 }
 
 export function channelName(sessionId: string): string {
