@@ -47,8 +47,8 @@ type BagState = {
   id: string;
   bagNumber: number;
   weightKg: number;
-  serviceTypeId?: string;
-  serviceCode?: string;
+  serviceTypeIds?: string[];
+  serviceCodes?: string[];
   colorType?: string;
   lineTotal?: number;
 };
@@ -88,16 +88,18 @@ export function CustomerKiosk({
       id: item.id,
       bagNumber: item.bag_number,
       weightKg: Number(item.weight_kg),
-      serviceTypeId: item.order_item_services?.[0]?.service_type_id,
-      serviceCode: item.order_item_services?.[0]?.service_type?.code,
+      serviceTypeIds: item.order_item_services?.map((s) => s.service_type_id),
+      serviceCodes: item.order_item_services
+        ?.map((s) => s.service_type?.code ?? "")
+        .filter(Boolean),
       colorType: item.color_type ?? undefined,
-      lineTotal: item.order_item_services?.[0]?.line_total,
+      lineTotal: item.order_item_services?.reduce((sum, s) => sum + s.line_total, 0),
     }))
   );
   const [orderTotal, setOrderTotal] = useState(order.total_amount ?? 0);
   const [connState, setConnState] = useState<"connecting" | "connected" | "reconnecting" | "degraded" | "error">("connecting");
-  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
-  const [selectedColors, setSelectedColors] = useState<BagColorType[]>([]);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [selectedColor, setSelectedColor] = useState<BagColorType | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
   const dir = isRTL(locale) ? "rtl" : "ltr";
@@ -135,8 +137,8 @@ export function CustomerKiosk({
           if (prev.some((b) => b.id === p.itemId)) return prev;
           return [...prev, { id: p.itemId, bagNumber: p.bagNumber, weightKg: p.weightKg }];
         });
-        setSelectedServiceId("");
-        setSelectedColors([]);
+        setSelectedServiceIds([]);
+        setSelectedColor(null);
         setStep("bag_service_selection");
       }
     },
@@ -186,13 +188,13 @@ export function CustomerKiosk({
 
   async function handleInfoSubmitted(info: CustomerInfoInput) {
     void publish(SessionEvent.CUSTOMER_INFO_SUBMITTED, { sessionId, ...info });
-    setSelectedServiceId("");
-    setSelectedColors([]);
+    setSelectedServiceIds([]);
+    setSelectedColor(null);
     setStep("bag_service_selection");
   }
 
   async function handleBagServiceConfirm() {
-    if (!selectedServiceId || selectedColors.length === 0 || !pendingItemId) return;
+    if (selectedServiceIds.length === 0 || !selectedColor || !pendingItemId) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/orders/${order.id}`, {
@@ -201,14 +203,14 @@ export function CustomerKiosk({
         body: JSON.stringify({
           action: "confirm_bag_service",
           itemId: pendingItemId,
-          serviceTypeId: selectedServiceId,
-          colorType: selectedColors,
+          serviceTypeIds: selectedServiceIds,
+          colorType: selectedColor,
         }),
       });
       const json = await res.json();
       if (!json.data) throw new Error(json.error ?? t["common.error"]);
 
-      const serviceCode = json.data.serviceCode as string;
+      const serviceCodes = json.data.serviceCodes as string[];
       const lineTotal = json.data.lineTotal as number;
       const colorType = (json.data.item as { color_type: string }).color_type;
       const newTotal = (json.data.order as { total_amount: number }).total_amount;
@@ -216,7 +218,7 @@ export function CustomerKiosk({
       setBags((prev) =>
         prev.map((b) =>
           b.id === pendingItemId
-            ? { ...b, serviceTypeId: selectedServiceId, serviceCode, colorType, lineTotal }
+            ? { ...b, serviceTypeIds: selectedServiceIds, serviceCodes, colorType, lineTotal }
             : b
         )
       );
@@ -226,8 +228,8 @@ export function CustomerKiosk({
       void publish(SessionEvent.CUSTOMER_BAG_SERVICE_CONFIRMED, {
         itemId: pendingItemId,
         bagNumber: bags.find((b) => b.id === pendingItemId)?.bagNumber ?? 1,
-        serviceTypeId: selectedServiceId,
-        serviceCode,
+        serviceTypeIds: selectedServiceIds,
+        serviceCodes,
         colorType,
         lineTotal,
       });
@@ -249,7 +251,7 @@ export function CustomerKiosk({
       });
       void publish(SessionEvent.CUSTOMER_ADD_BAG_REQUESTED, {
         orderId: order.id,
-        bagsCompleted: bags.filter((b) => b.serviceTypeId).length,
+        bagsCompleted: bags.filter((b) => b.serviceTypeIds && b.serviceTypeIds.length > 0).length,
       });
       setStep("waiting_for_weight");
     } catch { /* ignore */ }
@@ -287,7 +289,7 @@ export function CustomerKiosk({
   }
 
   const pendingBag = bags.find((b) => b.id === pendingItemId);
-  const completedBags = bags.filter((b) => b.serviceTypeId);
+  const completedBags = bags.filter((b) => b.serviceTypeIds && b.serviceTypeIds.length > 0);
   const activeServices = serviceTypes.filter((s) => s.is_active);
   const shopName = "המכבסה By Chabad";
 
@@ -351,33 +353,54 @@ export function CustomerKiosk({
                     className="bg-brand-50 border border-brand-200 rounded-2xl px-3 py-2 text-xs font-semibold text-brand-700"
                   >
                     {t["customer.bag"]} {bag.bagNumber}
-                    {bag.serviceCode ? ` · ${t[`service.${bag.serviceCode}`] ?? bag.serviceCode}` : ""}
+                    {bag.serviceCodes && bag.serviceCodes.length > 0
+                      ? ` · ${bag.serviceCodes.map((c) => t[`service.${c}`] ?? c).join(", ")}`
+                      : ""}
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Service type */}
+            {/* Laundry type — multi-select */}
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 space-y-3">
               <h3 className="font-bold text-gray-900">{t["customer.select_services"]}</h3>
               <div className="grid grid-cols-1 gap-2">
                 {activeServices.map((service) => {
                   const price = service.pricing_rules?.[0];
-                  const selected = selectedServiceId === service.id;
+                  const selected = selectedServiceIds.includes(service.id);
                   return (
                     <button
                       key={service.id}
                       type="button"
-                      onClick={() => setSelectedServiceId(service.id)}
+                      onClick={() =>
+                        setSelectedServiceIds((prev) =>
+                          prev.includes(service.id)
+                            ? prev.filter((id) => id !== service.id)
+                            : [...prev, service.id]
+                        )
+                      }
                       className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all text-left ${
                         selected
                           ? "border-brand-600 bg-brand-50"
                           : "border-gray-200 bg-white hover:border-gray-300"
                       }`}
                     >
-                      <span className="font-semibold text-gray-900">
-                        {t[`service.${service.code}`] ?? service.code}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                            selected ? "border-brand-600 bg-brand-600" : "border-gray-300 bg-white"
+                          }`}
+                        >
+                          {selected && (
+                            <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                              <path d="M1 4l3 3 6-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
+                        </div>
+                        <span className="font-semibold text-gray-900">
+                          {t[`service.${service.code}`] ?? service.code}
+                        </span>
+                      </div>
                       {price && (
                         <span className="text-sm text-gray-500">
                           {formatCurrency(Number(price.price_per_kg), locale)}/kg
@@ -389,9 +412,9 @@ export function CustomerKiosk({
               </div>
             </div>
 
-            {/* Color selection */}
+            {/* Color — single select */}
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 space-y-3">
-              <h3 className="font-bold text-gray-900">{t["customer.select_color"] ?? "סוג כביסה"}</h3>
+              <h3 className="font-bold text-gray-900">{t["customer.select_color"] ?? "צבע הכביסה"}</h3>
               <div className="grid grid-cols-3 gap-3">
                 {(["white", "colorful", "dark"] as const).map((color) => {
                   const colorDot: Record<string, string> = {
@@ -399,21 +422,15 @@ export function CustomerKiosk({
                     colorful: "bg-gradient-to-br from-pink-400 via-yellow-300 to-blue-400",
                     dark: "bg-gray-800",
                   };
-                  const selected = selectedColors.includes(color);
+                  const selected = selectedColor === color;
                   return (
                     <button
                       key={color}
                       type="button"
-                      onClick={() =>
-                        setSelectedColors((prev) =>
-                          prev.includes(color)
-                            ? prev.filter((c) => c !== color)
-                            : [...prev, color]
-                        )
-                      }
+                      onClick={() => setSelectedColor(color)}
                       className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${
                         selected
-                          ? "border-brand-600 bg-brand-50"
+                          ? "border-brand-600 bg-brand-50 shadow-sm"
                           : "border-gray-200 bg-white hover:border-gray-300"
                       }`}
                     >
@@ -421,6 +438,9 @@ export function CustomerKiosk({
                       <span className="text-xs font-medium text-gray-700">
                         {t[`color.${color}`] ?? color}
                       </span>
+                      {selected && (
+                        <div className="w-2 h-2 rounded-full bg-brand-600" />
+                      )}
                     </button>
                   );
                 })}
@@ -430,7 +450,7 @@ export function CustomerKiosk({
             <Button
               size="xl"
               className="w-full"
-              disabled={!selectedServiceId || selectedColors.length === 0}
+              disabled={selectedServiceIds.length === 0 || !selectedColor}
               loading={submitting}
               onClick={handleBagServiceConfirm}
             >
@@ -445,20 +465,41 @@ export function CustomerKiosk({
             <h2 className="text-xl font-bold text-gray-900">{t["customer.order_summary"] ?? "סיכום הזמנה"}</h2>
 
             {completedBags.map((bag) => (
-              <div key={bag.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-gray-900">
-                    {t["customer.bag"]} {bag.bagNumber} — {formatWeight(bag.weightKg, locale, t["unit.kg"])}
+              <div key={bag.id} className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm p-5 space-y-3">
+                {/* Bag header */}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-brand-100 flex items-center justify-center shrink-0">
+                      <span className="text-sm font-black text-brand-700">{bag.bagNumber}</span>
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-900">
+                        {t["customer.bag"]} {bag.bagNumber}
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        {formatWeight(bag.weightKg, locale, t["unit.kg"])}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-500 mt-0.5">
-                    {bag.serviceCode ? (t[`service.${bag.serviceCode}`] ?? bag.serviceCode) : ""}
-                    {bag.colorType
-                      ? ` · ${bag.colorType.split(",").map((c) => t[`color.${c}`] ?? c).join(", ")}`
-                      : ""}
+                  <div className="text-brand-700 font-bold text-lg">
+                    {bag.lineTotal !== undefined ? formatCurrency(bag.lineTotal, locale) : ""}
                   </div>
                 </div>
-                <div className="text-brand-700 font-bold">
-                  {bag.lineTotal !== undefined ? formatCurrency(bag.lineTotal, locale) : ""}
+                {/* Services + color */}
+                <div className="border-t border-gray-100 pt-3 flex flex-wrap gap-2">
+                  {bag.serviceCodes?.map((code) => (
+                    <span
+                      key={code}
+                      className="inline-flex items-center px-2.5 py-1 rounded-xl bg-brand-50 border border-brand-200 text-xs font-semibold text-brand-700"
+                    >
+                      {t[`service.${code}`] ?? code}
+                    </span>
+                  ))}
+                  {bag.colorType && (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-gray-50 border border-gray-200 text-xs font-medium text-gray-600">
+                      {t[`color.${bag.colorType}`] ?? bag.colorType}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

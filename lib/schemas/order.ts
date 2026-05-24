@@ -51,12 +51,9 @@ export const UpdateOrderDetailsSchema = z.object({
 
 const BagColorEnum = z.enum(["white", "colorful", "dark"]);
 export const ConfirmBagServiceSchema = z.object({
-  itemId:        z.string().uuid(),
-  serviceTypeId: z.string().uuid(),
-  colorType:     z.union([
-    BagColorEnum,
-    z.array(BagColorEnum).min(1),
-  ]).transform((v) => Array.isArray(v) ? v.join(",") : v),
+  itemId:         z.string().uuid(),
+  serviceTypeIds: z.array(z.string().uuid()).min(1),
+  colorType:      BagColorEnum,
 });
 
 export const AddBagWeightSchema = z.object({

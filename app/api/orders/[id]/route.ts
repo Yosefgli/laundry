@@ -199,27 +199,15 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
         return NextResponse.json({ data: null, error: parsed.error.flatten() }, { status: 400 });
       }
 
-      // Update the item's color_type (stored as comma-separated values for multi-select)
+      // Update the item's color_type (single value)
       const { error: itemUpdateError } = await supabase
         .from("order_items")
-        .update({ color_type: parsed.data.colorType as "white" | "colorful" | "dark" })
+        .update({ color_type: parsed.data.colorType })
         .eq("id", parsed.data.itemId)
         .eq("order_id", id);
 
       if (itemUpdateError) {
         return NextResponse.json({ data: null, error: itemUpdateError.message }, { status: 500 });
-      }
-
-      // Fetch the active pricing rule for this service
-      const { data: rule } = await supabase
-        .from("pricing_rules")
-        .select("*, service_type:service_types(id, code)")
-        .eq("service_type_id", parsed.data.serviceTypeId)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (!rule) {
-        return NextResponse.json({ data: null, error: "No active pricing rule found" }, { status: 400 });
       }
 
       // Fetch item weight
@@ -233,26 +221,43 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
         return NextResponse.json({ data: null, error: "Item not found" }, { status: 404 });
       }
 
-      const lineItem = calculateItemPrice(Number(item.weight_kg), {
-        serviceTypeId: rule.service_type_id,
-        serviceCode: (rule.service_type as { code: string } | null)?.code ?? "",
-        pricingRule: rule,
-      });
-
-      // Upsert the service association (idempotent if called twice)
-      const { error: serviceError } = await supabase
+      // Delete any existing services for this item so we start fresh
+      await supabase
         .from("order_item_services")
-        .upsert({
+        .delete()
+        .eq("order_item_id", parsed.data.itemId);
+
+      // Insert a service record for every selected service type
+      const serviceCodes: string[] = [];
+      let totalLineTotal = 0;
+
+      for (const serviceTypeId of parsed.data.serviceTypeIds) {
+        const { data: rule } = await supabase
+          .from("pricing_rules")
+          .select("*, service_type:service_types(id, code)")
+          .eq("service_type_id", serviceTypeId)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (!rule) continue;
+
+        const lineItem = calculateItemPrice(Number(item.weight_kg), {
+          serviceTypeId: rule.service_type_id,
+          serviceCode: (rule.service_type as { code: string } | null)?.code ?? "",
+          pricingRule: rule,
+        });
+
+        await supabase.from("order_item_services").insert({
           order_item_id: parsed.data.itemId,
-          service_type_id: parsed.data.serviceTypeId,
+          service_type_id: serviceTypeId,
           pricing_rule_id: rule.id,
           price_per_kg: Number(rule.price_per_kg),
           flat_fee: Number(rule.flat_fee),
           line_total: lineItem.lineTotal,
-        }, { onConflict: "order_item_id,service_type_id" });
+        });
 
-      if (serviceError) {
-        return NextResponse.json({ data: null, error: serviceError.message }, { status: 500 });
+        serviceCodes.push((rule.service_type as { code: string } | null)?.code ?? "");
+        totalLineTotal += lineItem.lineTotal;
       }
 
       // Advance order to "confirmed" status and update session step
@@ -275,8 +280,8 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
       return NextResponse.json({
         data: {
           item: { id: item.id, weight_kg: item.weight_kg, bag_number: item.bag_number, color_type: parsed.data.colorType },
-          serviceCode: (rule.service_type as { code: string } | null)?.code ?? "",
-          lineTotal: lineItem.lineTotal,
+          serviceCodes,
+          lineTotal: totalLineTotal,
           order: updatedOrder,
         },
         error: null,

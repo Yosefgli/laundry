@@ -30,3 +30,4 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 - 2026-05-20: Optimized employee-to-customer realtime handoff with pre-API optimistic broadcast and ready-state reconciliation.
 
 - 2026-05-20: 5 customer-side fixes — session auto-close via Presence (grace 15s), multi-select laundry type, completed-bags indicator on service selection, bottom padding on confirm button, full-screen celebration overlay.
+- Color selection → single-select, laundry type → multi-select; each bag a standalone card in summary; OrderEditor: ReceiptPrint + per-bag ItemLabelPrint buttons replacing CombinedOrderPrint.

@@ -94,8 +94,8 @@ export interface BagWeightEnteredPayload {
 export interface BagServiceConfirmedPayload {
   itemId: string;
   bagNumber: number;
-  serviceTypeId: string;
-  serviceCode: string;
+  serviceTypeIds: string[];
+  serviceCodes: string[];
   colorType: string;
   lineTotal: number;
 }
