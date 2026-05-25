@@ -41,12 +41,14 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceClient();
     const { email, password, full_name, role } = body.data;
 
-    // 1. Create the Supabase auth user (this is the "autocreation" — no email confirmation needed for internal users)
+    // 1. Create the Supabase auth user.
+    // Do NOT pass user_metadata.full_name — that would trigger handle_new_user()
+    // which also inserts into employees, causing a unique-constraint conflict.
+    // The employee row is created explicitly in step 2.
     const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name },
     });
 
     if (authErr || !authData.user) {

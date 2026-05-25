@@ -33,3 +33,4 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 - Color selection → single-select, laundry type → multi-select; each bag a standalone card in summary; OrderEditor: ReceiptPrint + per-bag ItemLabelPrint buttons replacing CombinedOrderPrint.
 
 - Full admin CRUD for service types (add/edit/delete with translations) and employees (create auth user + employee row, edit name/role/password, toggle active, delete with cascade); added email column to employees table; 4 new audit_action enum values; 4 new API route files; ServicesManager + EmployeesManager client components.
+- Fixed handle_new_user trigger search_path (relation employees does not exist error) + removed double-insert from admin create-employee route
