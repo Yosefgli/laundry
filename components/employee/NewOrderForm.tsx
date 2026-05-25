@@ -24,7 +24,6 @@ type FormData = z.infer<typeof schema>;
 
 interface NewOrderFormProps {
   translations: Record<string, string>;
-  workstationId?: string;
   employeeDeviceId: string;
   customerDeviceId: string;
   onCreated: (orderId: string, sessionId: string) => void;
@@ -32,7 +31,6 @@ interface NewOrderFormProps {
 
 export function NewOrderForm({
   translations: t,
-  workstationId,
   employeeDeviceId,
   customerDeviceId,
   onCreated,
@@ -132,7 +130,6 @@ export function NewOrderForm({
           orderId,
           weightKg: data.weightKg,
           employeeDeviceId,
-          workstationId,
         }),
       });
       const sessionJson = await sessionRes.json();
