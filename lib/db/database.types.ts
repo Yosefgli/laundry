@@ -20,6 +20,7 @@ export type Database = {
           full_name: string;
           role: "admin" | "employee";
           is_active: boolean;
+          email: string | null;
           created_at: string;
           updated_at: string;
         };

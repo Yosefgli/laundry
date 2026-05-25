@@ -31,3 +31,5 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 
 - 2026-05-20: 5 customer-side fixes — session auto-close via Presence (grace 15s), multi-select laundry type, completed-bags indicator on service selection, bottom padding on confirm button, full-screen celebration overlay.
 - Color selection → single-select, laundry type → multi-select; each bag a standalone card in summary; OrderEditor: ReceiptPrint + per-bag ItemLabelPrint buttons replacing CombinedOrderPrint.
+
+- Full admin CRUD for service types (add/edit/delete with translations) and employees (create auth user + employee row, edit name/role/password, toggle active, delete with cascade); added email column to employees table; 4 new audit_action enum values; 4 new API route files; ServicesManager + EmployeesManager client components.
