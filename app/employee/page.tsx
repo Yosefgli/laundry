@@ -15,17 +15,6 @@ async function getEmployee() {
   return data;
 }
 
-async function getWorkstation() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("workstations")
-    .select("id, name")
-    .eq("is_active", true)
-    .limit(1)
-    .single();
-  return data;
-}
-
 async function getRecentOrders() {
   const supabase = await createClient();
   const { data } = await supabase
@@ -42,18 +31,13 @@ export default async function EmployeePage() {
   if (!employee) redirect("/auth/login");
 
   const { locale, translations: i18nTranslations } = await getI18n();
-  const [workstation, recentOrders] = await Promise.all([
-    getWorkstation(),
-    getRecentOrders(),
-  ]);
+  const recentOrders = await getRecentOrders();
 
   return (
     <EmployeeDashboard
       employee={employee}
       translations={i18nTranslations}
       locale={locale}
-      workstationId={workstation?.id}
-      workstationName={workstation?.name ?? "Station"}
       recentOrders={recentOrders}
     />
   );

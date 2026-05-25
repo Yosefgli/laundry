@@ -6,7 +6,6 @@ export const CreateSessionSchema = z.object({
   orderNumber: z.string().min(1).max(40).optional(),
   weightKg: z.number().positive().max(999).optional(),
   employeeDeviceId: z.string().min(1).max(200),
-  workstationId: z.string().uuid().optional(),
 }).refine(
   (data) => Boolean(data.orderId) || data.weightKg !== undefined,
   { message: "Provide orderId or weightKg", path: ["orderId"] }

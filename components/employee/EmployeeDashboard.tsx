@@ -41,8 +41,6 @@ interface EmployeeDashboardProps {
   employee: Employee;
   translations: Record<string, string>;
   locale: Locale;
-  workstationId?: string;
-  workstationName: string;
   recentOrders: RecentOrder[];
 }
 
@@ -84,8 +82,6 @@ export function EmployeeDashboard({
   employee,
   translations: t,
   locale,
-  workstationId,
-  workstationName,
   recentOrders: initialOrders,
 }: EmployeeDashboardProps) {
   const supabase = createClient();
@@ -98,7 +94,7 @@ export function EmployeeDashboard({
   const [scanError, setScanError] = useState<string | null>(null);
   const [recentOrders, setRecentOrders] = useState(initialOrders);
 
-  const deviceId = `employee-${employee.id}-${workstationId ?? "default"}`;
+  const deviceId = `employee-${employee.id}`;
 
   function handleOrderCreated(orderId: string, sessionId: string) {
     setActiveOrderId(orderId);
@@ -203,7 +199,7 @@ export function EmployeeDashboard({
           </div>
           <div>
             <h1 className="font-black text-base leading-none">Laundry <span className="font-light">by Chabad</span></h1>
-            <p className="text-xs text-white/70 mt-0.5">{workstationName} · {employee.full_name}</p>
+            <p className="text-xs text-white/70 mt-0.5">{employee.full_name}</p>
           </div>
         </div>
         <div className="flex gap-1">
@@ -352,7 +348,6 @@ export function EmployeeDashboard({
             <h2 className="font-bold text-gray-900">{t["employee.new_order"]}</h2>
             <NewOrderForm
               translations={t}
-              workstationId={workstationId}
               employeeDeviceId={deviceId}
               customerDeviceId={`customer-${employee.id}`}
               onCreated={handleOrderCreated}

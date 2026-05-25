@@ -2,7 +2,6 @@ import { z } from "zod";
 import { PHONE_COUNTRY_CODES, isSupportedPhoneCountryCode } from "@/lib/phoneCountryCodes";
 
 export const CreateOrderSchema = z.object({
-  workstationId: z.string().uuid().optional(),
   "idempotency-key": z.string().min(1).max(128).optional(),
 });
 

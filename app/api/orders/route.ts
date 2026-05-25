@@ -59,7 +59,6 @@ export async function POST(request: NextRequest) {
       .from("orders")
       .insert({
         employee_id: employee.id,
-        workstation_id: parsed.data.workstationId ?? null,
         status: "draft",
         payment_status: "pending",
       })

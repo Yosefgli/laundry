@@ -68,21 +68,6 @@ export type Database = {
           }
         ];
       };
-      workstations: {
-        Row: {
-          id: string;
-          name: string;
-          printer_ip: string | null;
-          printer_port: number;
-          printer_http_url: string | null;
-          is_active: boolean;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Omit<Database["public"]["Tables"]["workstations"]["Row"], "id" | "created_at" | "updated_at">> & { id?: string };
-        Update: Partial<Database["public"]["Tables"]["workstations"]["Insert"]>;
-        Relationships: [];
-      };
       service_types: {
         Row: {
           id: string;
@@ -135,7 +120,6 @@ export type Database = {
           id: string;
           order_number: string;
           employee_id: string;
-          workstation_id: string | null;
           customer_name: string | null;
           customer_phone: string | null;
           customer_notes: string | null;
@@ -159,13 +143,6 @@ export type Database = {
             columns: ["employee_id"];
             isOneToOne: false;
             referencedRelation: "employees";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "orders_workstation_id_fkey";
-            columns: ["workstation_id"];
-            isOneToOne: false;
-            referencedRelation: "workstations";
             referencedColumns: ["id"];
           },
           {
@@ -252,7 +229,6 @@ export type Database = {
           order_id: string | null;
           employee_device_id: string;
           customer_device_id: string | null;
-          workstation_id: string | null;
           pairing_code: string | null;
           pairing_code_expires: string | null;
           status: "active" | "completed" | "cancelled" | "expired";
@@ -273,13 +249,6 @@ export type Database = {
             referencedRelation: "orders";
             referencedColumns: ["id"];
           },
-          {
-            foreignKeyName: "sessions_workstation_id_fkey";
-            columns: ["workstation_id"];
-            isOneToOne: false;
-            referencedRelation: "workstations";
-            referencedColumns: ["id"];
-          }
         ];
       };
       payments: {

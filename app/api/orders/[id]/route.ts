@@ -26,7 +26,6 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
       .select(`
         *,
         employee:employees(id, full_name),
-        workstation:workstations(id, name),
         order_items(
           *,
           order_item_services(

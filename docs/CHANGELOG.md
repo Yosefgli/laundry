@@ -34,3 +34,5 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 
 - Full admin CRUD for service types (add/edit/delete with translations) and employees (create auth user + employee row, edit name/role/password, toggle active, delete with cascade); added email column to employees table; 4 new audit_action enum values; 4 new API route files; ServicesManager + EmployeesManager client components.
 - Fixed handle_new_user trigger search_path (relation employees does not exist error) + removed double-insert from admin create-employee route
+- Removed workstations feature entirely: deleted admin UI, CRUD API routes, WorkstationManager component; stripped workstation_id from orders/sessions schema + API; removed workstation join from print route; dropped workstations table + FK columns via Supabase migration.
+- Removed workstations feature entirely: deleted admin UI, CRUD API routes, WorkstationManager component; stripped workstation_id from orders/sessions schema + API; removed workstation join from print route; dropped workstations table + FK columns via Supabase migration.

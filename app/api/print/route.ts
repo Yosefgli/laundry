@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       supabase
         .from("orders")
         .select(
-          `*, workstation:workstations(printer_http_url), order_items(*, order_item_services(*, service_type:service_types(id, code)))`
+          `*, order_items(*, order_item_services(*, service_type:service_types(id, code)))`
         )
         .eq("id", orderId)
         .single(),
@@ -42,11 +42,10 @@ export async function POST(request: NextRequest) {
     }
 
     const order = orderResult.data;
-    const workstation = order.workstation as { printer_http_url: string | null } | null;
 
-    // Resolve printer: employee-assigned printer (ePOS) → workstation URL (legacy HTML) → env fallback
+    // Resolve printer: employee-assigned printer (ePOS) → env fallback
     const printerIp = (printerResult.data?.printers as { ip_address: string } | null)?.ip_address ?? null;
-    const legacyPrintUrl = workstation?.printer_http_url ?? process.env.PRINT_SERVER_URL ?? null;
+    const legacyPrintUrl = process.env.PRINT_SERVER_URL ?? null;
 
     if (!printerIp && !legacyPrintUrl) {
       return NextResponse.json(
