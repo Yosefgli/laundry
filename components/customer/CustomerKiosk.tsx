@@ -332,6 +332,14 @@ export function CustomerKiosk({
           </div>
         )}
 
+        {/* ── Step: bag service selection — waiting for bag data ─── */}
+        {step === "bag_service_selection" && !pendingBag && (
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-10 text-center space-y-4">
+            <div className="mx-auto w-10 h-10 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin" />
+            <p className="text-gray-400 text-sm">{t["customer.waiting_for_weight"] ?? "ממתין לנתוני שקית…"}</p>
+          </div>
+        )}
+
         {/* ── Step: bag service selection ─────────────────────────── */}
         {step === "bag_service_selection" && pendingBag && (
           <div className="space-y-5 pb-24">

@@ -25,6 +25,7 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "nav.logout": "Log out",
     "nav.back_employee": "Employee",
     "nav.back_admin": "Admin",
+    "nav.customer_screen": "Customer Screen",
 
     "common.confirm": "Confirm",
     "common.cancel": "Cancel",
@@ -213,6 +214,7 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "nav.logout": "התנתק",
     "nav.back_employee": "עובד",
     "nav.back_admin": "מנהל",
+    "nav.customer_screen": "מסך לקוח",
 
     "common.confirm": "אשר",
     "common.cancel": "ביטול",
@@ -401,6 +403,7 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "nav.logout": "ထွက်မည်",
     "nav.back_employee": "ဝန်ထမ်း",
     "nav.back_admin": "အုပ်ချုပ်ရေး",
+    "nav.customer_screen": "ဖောက်သည်မျက်နှာပြင်",
 
     "common.confirm": "အတည်ပြုမည်",
     "common.cancel": "ပယ်ဖျက်မည်",

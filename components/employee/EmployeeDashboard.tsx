@@ -204,6 +204,7 @@ export function EmployeeDashboard({
         </div>
         <div className="flex gap-1">
           <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 hover:text-white" onClick={() => setView("scan")}>{t["employee.scan_barcode"]}</Button>
+          <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 hover:text-white" onClick={() => window.location.href = "/customer"}>{t["nav.customer_screen"]}</Button>
           {employee.role === "admin" && (
             <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 hover:text-white" onClick={() => window.location.href = "/admin"}>{t["nav.admin"]}</Button>
           )}

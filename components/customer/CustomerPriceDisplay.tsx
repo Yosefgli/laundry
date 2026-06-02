@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency, isRTL, type Locale, type TranslationMap } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
-import { CustomerKiosk } from "@/components/customer/CustomerKiosk";
 import {
   customerDeviceChannelName,
   SessionEvent,
@@ -38,6 +37,20 @@ type ActiveSessionResponse = {
   error: string | null;
 };
 
+function getOrCreateInstanceId(): string {
+  try {
+    const key = "customerInstanceId";
+    let id = sessionStorage.getItem(key);
+    if (!id) {
+      id = crypto.randomUUID();
+      sessionStorage.setItem(key, id);
+    }
+    return id;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
+
 function activeRule(service: ServiceType) {
   return service.pricing_rules?.find((rule) => rule.is_active) ?? service.pricing_rules?.[0] ?? null;
 }
@@ -50,45 +63,38 @@ export function CustomerPriceDisplay({
 }: CustomerPriceDisplayProps) {
   const router = useRouter();
   const dir = isRTL(locale) ? "rtl" : "ltr";
-  const openedSessionRef = useRef<string | null>(null);
-  const [activeSession, setActiveSession] = useState<SessionStartedPayload | null>(null);
+  // Tracks whether this tab is the "primary" instance among all tabs/devices
+  // sharing the same customerDeviceId. Last-joined wins via presence timestamps.
+  const isPrimaryRef = useRef<boolean>(true);
+  const navigatedRef = useRef<boolean>(false);
 
   useEffect(() => {
+    const instanceId = getOrCreateInstanceId();
+    const myJoinedAt = Date.now();
     let cancelled = false;
     const supabase = createClient();
 
-    function mergeSession(
-      previous: SessionStartedPayload | null,
-      next: SessionStartedPayload
-    ): SessionStartedPayload {
-      return {
-        ...previous,
-        ...next,
-        orderId: next.orderId || previous?.orderId || "",
-        workflowStep: next.workflowStep || previous?.workflowStep || "customer_info",
-        orderNumber: next.orderNumber ?? previous?.orderNumber,
-        totalWeightKg: next.totalWeightKg ?? previous?.totalWeightKg,
-        isReady: Boolean(previous?.isReady || next.isReady),
-      };
+    function navigateToSession(sessionId: string, deviceId: string) {
+      if (cancelled || !isPrimaryRef.current || navigatedRef.current) return;
+      navigatedRef.current = true;
+      router.replace(`/customer/${sessionId}?device=${encodeURIComponent(deviceId)}`);
     }
 
-    function openSession(session: SessionStartedPayload, deviceId = customerDeviceId) {
-      const sessionId = session.sessionId;
-      if (cancelled) return;
-
-      if (openedSessionRef.current === sessionId) {
-        setActiveSession((previous) => mergeSession(previous, session));
-        return;
+    async function checkForSession() {
+      if (!isPrimaryRef.current) return;
+      try {
+        const res = await fetch("/api/sessions/active", { cache: "no-store" });
+        if (res.status === 401) {
+          router.replace("/auth/login");
+          return;
+        }
+        const json = (await res.json()) as ActiveSessionResponse;
+        if (json.data?.id) {
+          navigateToSession(json.data.id, json.data.customerDeviceId);
+        }
+      } catch {
+        // Keep the price list visible if the fallback check fails.
       }
-
-      openedSessionRef.current = sessionId;
-
-      if (session.orderId && session.totalWeightKg !== undefined) {
-        setActiveSession(session);
-        return;
-      }
-
-      router.replace(`/customer/${sessionId}?device=${encodeURIComponent(deviceId)}`);
     }
 
     const channel = supabase
@@ -100,7 +106,8 @@ export function CustomerPriceDisplay({
         const session = envelope.payload ?? (payload as SessionStartedPayload);
         if (!session?.sessionId) return;
         if (session.customerDeviceId && session.customerDeviceId !== customerDeviceId) return;
-        openSession(session, session.customerDeviceId);
+        if (session.isReady === false) return; // pre-flight broadcast — DB write not yet committed
+        navigateToSession(session.sessionId, session.customerDeviceId ?? customerDeviceId);
       })
       .on(
         "postgres_changes",
@@ -117,50 +124,27 @@ export function CustomerPriceDisplay({
             customer_device_id?: string | null;
           };
           if (session.status !== "active" || !session.id) return;
-          openSession(
-            {
-              sessionId: session.id,
-              orderId: "",
-              workflowStep: "customer_info",
-              customerDeviceId: session.customer_device_id ?? customerDeviceId,
-            },
-            session.customer_device_id ?? customerDeviceId
-          );
+          navigateToSession(session.id, session.customer_device_id ?? customerDeviceId);
         }
       )
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState<{ instanceId: string; joinedAt: number }>();
+        const allInstances = Object.values(state).flat();
+        // Primary = the instance with the highest joinedAt (most recently connected).
+        // Tiebreak by instanceId string comparison so exactly one tab is primary.
+        const isPrimary = !allInstances.some(
+          (p) =>
+            p.joinedAt > myJoinedAt ||
+            (p.joinedAt === myJoinedAt && p.instanceId > instanceId)
+        );
+        isPrimaryRef.current = isPrimary;
+      })
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
+          void channel.track({ instanceId, joinedAt: myJoinedAt });
           void checkForSession();
         }
       });
-
-    async function checkForSession() {
-      try {
-        const res = await fetch("/api/sessions/active", { cache: "no-store" });
-        if (res.status === 401) {
-          router.replace("/auth/login");
-          return;
-        }
-
-        const json = (await res.json()) as ActiveSessionResponse;
-        if (!cancelled && json.data?.id) {
-          openSession(
-            {
-              sessionId: json.data.id,
-              orderId: json.data.order?.id ?? "",
-              orderNumber: json.data.order?.orderNumber,
-              totalWeightKg: json.data.order?.totalWeightKg,
-              workflowStep: "customer_info",
-              customerDeviceId: json.data.customerDeviceId,
-              isReady: Boolean(json.data.order),
-            },
-            json.data.customerDeviceId
-          );
-        }
-      } catch {
-        // Keep the price list visible if the fallback check fails.
-      }
-    }
 
     void checkForSession();
     const interval = window.setInterval(checkForSession, 1000);
@@ -171,31 +155,6 @@ export function CustomerPriceDisplay({
       void supabase.removeChannel(channel);
     };
   }, [customerDeviceId, router]);
-
-  if (activeSession?.orderId && activeSession.totalWeightKg !== undefined) {
-    return (
-      <CustomerKiosk
-        sessionId={activeSession.sessionId}
-        initialWorkflowStep={activeSession.workflowStep ?? "customer_info"}
-        pendingItemId={activeSession.pendingItemId ?? null}
-        order={{
-          id: activeSession.orderId,
-          order_number: activeSession.orderNumber ?? "",
-          status: "weighed",
-          total_weight_kg: activeSession.totalWeightKg,
-          total_amount: 0,
-          order_items: activeSession.orderItems ?? [],
-        }}
-        serviceTypes={serviceTypes}
-        translations={t}
-        locale={locale}
-        onReturnToPriceList={() => {
-          openedSessionRef.current = null;
-          setActiveSession(null);
-        }}
-      />
-    );
-  }
 
   const activeServices = serviceTypes.filter((service) => service.is_active);
 
