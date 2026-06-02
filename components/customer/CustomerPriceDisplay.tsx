@@ -106,6 +106,7 @@ export function CustomerPriceDisplay({
         const session = envelope.payload ?? (payload as SessionStartedPayload);
         if (!session?.sessionId) return;
         if (session.customerDeviceId && session.customerDeviceId !== customerDeviceId) return;
+        if (session.isReady === false) return; // pre-flight broadcast — DB write not yet committed
         navigateToSession(session.sessionId, session.customerDeviceId ?? customerDeviceId);
       })
       .on(
