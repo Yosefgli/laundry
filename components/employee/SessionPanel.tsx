@@ -9,6 +9,7 @@ import {
   type BroadcastEnvelope,
   type BagServiceConfirmedPayload,
   type OrderFinalizedPayload,
+  type WorkflowStepChangedPayload,
 } from "@/lib/realtime/events";
 import { formatCurrency, formatWeight, type Locale } from "@/lib/i18n";
 import { sendToPrinter } from "@/lib/print-client";
@@ -26,6 +27,7 @@ interface SessionPanelProps {
   onMarkPaid: () => void;
   onCancelSession: () => void;
   onOrderRefresh: () => void;
+  onBack: () => void;
 }
 
 const NEXT_STATUS: Record<string, string> = {
@@ -46,6 +48,7 @@ export function SessionPanel({
   onMarkPaid,
   onCancelSession,
   onOrderRefresh,
+  onBack,
 }: SessionPanelProps) {
   const [advancing, setAdvancing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -120,16 +123,20 @@ export function SessionPanel({
       const p = envelope.payload as OrderFinalizedPayload;
       void triggerReceiptPrint();
       void finalizeOrderInDb();
+      setWorkflowStep("order_confirmed");
       void p;
     }
     if (envelope.type === SessionEvent.ORDER_CONFIRMED) {
       onStatusAdvanced("confirmed");
       onOrderRefresh();
     }
-    if ([
-      SessionEvent.CUSTOMER_INFO_SUBMITTED,
-      SessionEvent.WORKFLOW_STEP_CHANGED,
-    ].includes(envelope.type)) {
+    if (envelope.type === SessionEvent.CUSTOMER_INFO_SUBMITTED) {
+      setWorkflowStep("bag_service_selection");
+      onOrderRefresh();
+    }
+    if (envelope.type === SessionEvent.WORKFLOW_STEP_CHANGED) {
+      const p = envelope.payload as WorkflowStepChangedPayload;
+      setWorkflowStep(p.step);
       onOrderRefresh();
     }
   }, [onOrderRefresh, onStatusAdvanced]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -308,15 +315,25 @@ export function SessionPanel({
         </div>
       )}
 
-      {/* Cancel session */}
-      <Button
-        onClick={cancelSession}
-        loading={cancelling}
-        variant="danger"
-        size="md"
-      >
-        {t["employee.cancel_session"]}
-      </Button>
+      {/* Cancel session OR Back to dashboard — never both */}
+      {workflowStep === "order_confirmed" ? (
+        <Button
+          onClick={onBack}
+          variant="secondary"
+          size="md"
+        >
+          {t["employee.back_dashboard"]}
+        </Button>
+      ) : (
+        <Button
+          onClick={cancelSession}
+          loading={cancelling}
+          variant="danger"
+          size="md"
+        >
+          {t["employee.cancel_session"]}
+        </Button>
+      )}
     </div>
   );
 }

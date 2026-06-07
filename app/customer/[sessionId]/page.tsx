@@ -79,6 +79,16 @@ async function getServiceTypes(): Promise<ServiceTypeWithPricingRules[]> {
   }));
 }
 
+async function getShopName(): Promise<string> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("system_settings")
+    .select("value")
+    .eq("key", "shop_name")
+    .maybeSingle();
+  return data?.value ?? "";
+}
+
 export default async function CustomerSessionPage({ params, searchParams }: RouteProps) {
   const { sessionId } = await params;
   const search = searchParams ? await searchParams : {};
@@ -88,9 +98,10 @@ export default async function CustomerSessionPage({ params, searchParams }: Rout
   const session = await getSessionData(sessionId, isHandoff(search.handoff));
   if (!session) notFound();
 
-  const [{ locale, translations }, serviceTypes] = await Promise.all([
+  const [{ locale, translations }, serviceTypes, shopName] = await Promise.all([
     getI18n(),
     getServiceTypes(),
+    getShopName(),
   ]);
 
   const order = Array.isArray(session.order) ? session.order[0] : session.order;
@@ -137,6 +148,7 @@ export default async function CustomerSessionPage({ params, searchParams }: Rout
       serviceTypes={serviceTypes}
       translations={translations}
       locale={locale}
+      shopName={shopName}
     />
   );
 }

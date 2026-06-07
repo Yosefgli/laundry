@@ -677,3 +677,12 @@ export function formatWeight(kg: number, locale: Locale, unit = "kg"): string {
     maximumFractionDigits: 3,
   }).format(kg) + ` ${unit}`;
 }
+
+/** Format a date as DD.MM.YYYY (consistent across all locales). */
+export function formatDate(isoDate: string): string {
+  const d = new Date(isoDate);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}.${month}.${year}`;
+}

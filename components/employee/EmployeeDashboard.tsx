@@ -447,17 +447,15 @@ export function EmployeeDashboard({
                   void refreshBackgroundSessions();
                 }}
                 onOrderRefresh={handleOrderRefresh}
+                onBack={() => setView("dashboard")}
               />
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <div className="mt-4">
                 <CombinedOrderPrint
                   order={activeOrder}
                   translations={t}
                   printLabel={t["print.print_all"]}
                   className="w-full sm:w-auto"
                 />
-                <Button variant="secondary" size="lg" className="w-full sm:w-auto" onClick={() => setView("dashboard")}>
-                  {t["employee.back_dashboard"]}
-                </Button>
               </div>
             </div>
           ) : (
@@ -473,6 +471,7 @@ export function EmployeeDashboard({
             order={activeOrder}
             translations={t}
             locale={locale}
+            isAdmin={employee.role === "admin"}
             onBack={() => setView("dashboard")}
             onReload={() => activeOrderId ? fetchOrder(activeOrderId) : Promise.resolve(null)}
             onOrderUpdated={(order) => {

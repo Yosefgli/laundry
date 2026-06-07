@@ -88,9 +88,18 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
         })
         .eq("id", id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) return NextResponse.json({ data: null, error: error.message }, { status: 500 });
+      if (!data) return NextResponse.json({ data: null, error: "Not found" }, { status: 404 });
+
+      await supabase
+        .from("sessions")
+        .update({ workflow_step: "bag_service_selection" })
+        .eq("order_id", id)
+        .eq("status", "active")
+        .eq("workflow_step", "customer_info");
+
       return NextResponse.json({ data, error: null });
     }
 
@@ -259,9 +268,6 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
         totalLineTotal += lineItem.lineTotal;
       }
 
-      // Advance order to "confirmed" status and update session step
-      await supabase.from("orders").update({ status: "confirmed" }).eq("id", id).in("status", ["draft", "weighed"]);
-
       // Update session step to bag_summary + clear pending_item_id
       await supabase
         .from("sessions")
@@ -306,7 +312,8 @@ export async function DELETE(_req: NextRequest, ctx: RouteContext) {
       .single();
 
     if (!order) return NextResponse.json({ data: null, error: "Not found" }, { status: 404 });
-    if (!["draft", "weighed"].includes(order.status)) {
+    const isAdmin = employee.role === "admin";
+    if (!isAdmin && !["draft", "weighed"].includes(order.status)) {
       return NextResponse.json(
         { data: null, error: "Cannot delete confirmed orders" },
         { status: 409 }
