@@ -422,7 +422,7 @@ export function CustomerKiosk({
 
             {/* Color — single select */}
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 space-y-3">
-              <h3 className="font-bold text-gray-900">{t["customer.select_color"] ?? "צבע הכביסה"}</h3>
+              <h3 className="font-bold text-gray-900">{t["customer.select_color"]}</h3>
               <div className="grid grid-cols-3 gap-3">
                 {(["white", "colorful", "dark"] as const).map((color) => {
                   const colorDot: Record<string, string> = {

@@ -21,7 +21,7 @@ async function getRecentOrders() {
   const { data } = await supabase
     .from("orders")
     .select("id, order_number, status, payment_status, customer_name, total_amount, created_at")
-    .not("status", "in", '("void","delivered")')
+    .not("status", "in", '("void","delivered","cancelled")')
     .order("created_at", { ascending: false })
     .limit(20);
   return data ?? [];

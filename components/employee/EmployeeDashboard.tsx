@@ -140,7 +140,7 @@ export function EmployeeDashboard({
 
   function upsertRecentOrder(order: Order) {
     setRecentOrders((prev) => {
-      if (["delivered", "void"].includes(order.status)) {
+      if (["delivered", "void", "cancelled"].includes(order.status)) {
         return prev.filter((item) => item.id !== order.id);
       }
 

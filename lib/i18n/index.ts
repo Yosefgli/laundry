@@ -164,6 +164,7 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "color.colorful": "Colorful",
     "color.dark": "Dark",
 
+    "customer.select_color": "Wash Color",
     "customer.search_country": "Search country...",
     "customer.select_country": "Select Country",
 
@@ -368,6 +369,7 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "color.colorful": "צבעוני",
     "color.dark": "כהה",
 
+    "customer.select_color": "צבע הכביסה",
     "customer.search_country": "חפש מדינה...",
     "customer.select_country": "בחר מדינה",
 
@@ -572,6 +574,7 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "color.colorful": "အရောင်စုံ",
     "color.dark": "အမှောင်",
 
+    "customer.select_color": "အဝတ်အရောင်",
     "customer.search_country": "နိုင်ငံ ရှာမည်...",
     "customer.select_country": "နိုင်ငံ ရွေးမည်",
 
