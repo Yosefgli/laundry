@@ -12,6 +12,9 @@ import { Button } from "@/components/ui/Button";
 import { useState } from "react";
 import type { Locale } from "@/lib/i18n";
 
+const CUSTOMER_INFO_RETRY_ATTEMPTS = 25;
+const CUSTOMER_INFO_RETRY_MS = 150;
+
 const VALID_COUNTRIES = new Set<string>(getCountries());
 
 const CustomerInfoFormSchema = z.object({
@@ -27,7 +30,7 @@ interface CustomerInfoFormProps {
   orderId: string;
   translations: Record<string, string>;
   locale: Locale;
-  onSubmitted: (info: CustomerInfoInput) => void;
+  onSubmitted: (info: CustomerInfoInput) => void | Promise<void>;
   disabled?: boolean;
 }
 
@@ -39,6 +42,7 @@ export function CustomerInfoForm({
   disabled = false,
 }: CustomerInfoFormProps) {
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const {
     register,
@@ -51,10 +55,31 @@ export function CustomerInfoForm({
     defaultValues: { selectedCountry: DEFAULT_PHONE_COUNTRY },
   });
 
+  function wait(ms: number) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  async function submitCustomerInfo(customerInfo: CustomerInfoInput): Promise<"ok" | "not_ready" | "failed"> {
+    for (let attempt = 1; attempt <= CUSTOMER_INFO_RETRY_ATTEMPTS; attempt += 1) {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_customer_info", ...customerInfo }),
+      });
+
+      if (res.ok) return "ok";
+      if (res.status !== 404 && res.status !== 409 && res.status !== 500) return "failed";
+      if (attempt < CUSTOMER_INFO_RETRY_ATTEMPTS) await wait(CUSTOMER_INFO_RETRY_MS);
+    }
+
+    return "not_ready";
+  }
+
   async function onSubmit(data: CustomerInfoFormInput) {
     if (disabled) return;
 
     setLoading(true);
+    setSubmitError(null);
     try {
       const localNumber = data.phoneNumber.replace(/\D/g, "").replace(/^0+/, "");
       if (localNumber.length < 4) {
@@ -69,16 +94,16 @@ export function CustomerInfoForm({
         notes: data.notes,
       };
 
-      const res = await fetch(`/api/orders/${orderId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "update_customer_info", ...customerInfo }),
-      });
-      if (!res.ok) {
+      const submitted = await submitCustomerInfo(customerInfo);
+      if (submitted === "not_ready") {
+        setSubmitError(t["common.reconnecting"] ?? t["common.error"]);
+        return;
+      }
+      if (submitted !== "ok") {
         setError("phoneNumber", { type: "manual", message: t["customer.phone_invalid"] });
         return;
       }
-      onSubmitted(customerInfo);
+      await onSubmitted(customerInfo);
     } finally {
       setLoading(false);
     }
@@ -123,6 +148,7 @@ export function CustomerInfoForm({
         error={errors.notes?.message}
         {...register("notes")}
       />
+      {submitError && <p className="text-sm text-red-600">{submitError}</p>}
       <Button type="submit" size="xl" loading={loading || disabled} className="w-full">
         {t["common.confirm"]}
       </Button>

@@ -47,3 +47,4 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 - Fixed order status bugs: confirmed only after customer final approval (employee-side authenticated call); cancelled used on session cancel (was void)
 - Fixed admin orders page showing empty: disambiguated ambiguous FK join  (orders has two FKs to employees: employee_id + delivered_by)
 - Fixed admin orders delete: filter void orders from fetch query so soft-deleted orders don't reappear on refresh.
+- 2026-06-07: Fixed customer realtime handoff race — early broadcast now opens an optimistic customer details form, customer-info save retries until the order exists, session workflow persists to bag-service selection, and customer active-session polling uses an explicit target.

@@ -88,9 +88,18 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
         })
         .eq("id", id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) return NextResponse.json({ data: null, error: error.message }, { status: 500 });
+      if (!data) return NextResponse.json({ data: null, error: "Not found" }, { status: 404 });
+
+      await supabase
+        .from("sessions")
+        .update({ workflow_step: "bag_service_selection" })
+        .eq("order_id", id)
+        .eq("status", "active")
+        .eq("workflow_step", "customer_info");
+
       return NextResponse.json({ data, error: null });
     }
 

@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatCurrency, isRTL, type Locale, type TranslationMap } from "@/lib/i18n";
+import { CustomerInfoForm } from "@/components/customer/CustomerInfoForm";
+import { formatCurrency, formatWeight, isRTL, type Locale, type TranslationMap } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import {
+  channelName,
   customerDeviceChannelName,
+  makeEnvelope,
   SessionEvent,
   type BroadcastEnvelope,
   type SessionStartedPayload,
 } from "@/lib/realtime/events";
 import type { Database } from "@/lib/db/database.types";
+import type { CustomerInfoInput } from "@/lib/schemas/order";
 
 type PricingRule = Database["public"]["Tables"]["pricing_rules"]["Row"];
 type ServiceType = Database["public"]["Tables"]["service_types"]["Row"] & {
@@ -37,6 +41,18 @@ type ActiveSessionResponse = {
   error: string | null;
 };
 
+type CustomerHandoff = SessionStartedPayload & {
+  customerDeviceId: string;
+};
+
+const SESSION_READY_RETRY_ATTEMPTS = 50;
+const SESSION_READY_RETRY_MS = 200;
+const HANDOFF_BROADCAST_TIMEOUT_MS = 1500;
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 function getOrCreateInstanceId(): string {
   try {
     const key = "customerInstanceId";
@@ -55,6 +71,122 @@ function activeRule(service: ServiceType) {
   return service.pricing_rules?.find((rule) => rule.is_active) ?? service.pricing_rules?.[0] ?? null;
 }
 
+interface PendingCustomerHandoffProps {
+  handoff: CustomerHandoff;
+  translations: TranslationMap;
+  locale: Locale;
+  onSessionReady: (sessionId: string) => Promise<boolean>;
+  onNavigate: (sessionId: string, deviceId: string) => boolean;
+}
+
+function PendingCustomerHandoff({
+  handoff,
+  translations: t,
+  locale,
+  onSessionReady,
+  onNavigate,
+}: PendingCustomerHandoffProps) {
+  const dir = isRTL(locale) ? "rtl" : "ltr";
+  const [submitted, setSubmitted] = useState(false);
+  const [readyError, setReadyError] = useState<string | null>(null);
+
+  async function publishCustomerInfoEvents(info: CustomerInfoInput) {
+    const supabase = createClient();
+    const channel = supabase.channel(channelName(handoff.sessionId), {
+      config: { broadcast: { self: false, ack: true } },
+    });
+
+    await channel
+      .httpSend(
+        SessionEvent.CUSTOMER_INFO_SUBMITTED,
+        makeEnvelope(SessionEvent.CUSTOMER_INFO_SUBMITTED, { sessionId: handoff.sessionId, ...info }),
+        { timeout: HANDOFF_BROADCAST_TIMEOUT_MS }
+      )
+      .catch(() => ({ success: false as const }));
+
+    await channel
+      .httpSend(
+        SessionEvent.WORKFLOW_STEP_CHANGED,
+        makeEnvelope(SessionEvent.WORKFLOW_STEP_CHANGED, {
+          step: "bag_service_selection",
+          orderId: handoff.orderId,
+        }),
+        { timeout: HANDOFF_BROADCAST_TIMEOUT_MS }
+      )
+      .catch(() => ({ success: false as const }));
+
+    await supabase.removeChannel(channel);
+  }
+
+  async function handleInfoSubmitted(info: CustomerInfoInput) {
+    setSubmitted(true);
+    setReadyError(null);
+
+    const ready = await onSessionReady(handoff.sessionId);
+    if (!ready) {
+      setReadyError(t["common.reconnecting"] ?? t["common.error"]);
+      setSubmitted(false);
+      return;
+    }
+
+    await publishCustomerInfoEvents(info);
+    onNavigate(handoff.sessionId, handoff.customerDeviceId);
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f8fefe]" dir={dir}>
+      <header className="bg-gradient-to-br from-brand-500 to-brand-700 text-white px-6 py-5 shadow-sm">
+        <div className="max-w-lg mx-auto flex items-center gap-3">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+            <svg width="22" height="22" viewBox="0 0 44 44" fill="none">
+              <rect x="4" y="8" width="36" height="32" rx="4" stroke="white" strokeWidth="2.5" fill="none"/>
+              <rect x="4" y="8" width="36" height="9" rx="4" fill="white" fillOpacity="0.3"/>
+              <circle cx="32" cy="12.5" r="2" fill="white"/>
+              <circle cx="37" cy="12.5" r="2" fill="white"/>
+              <circle cx="22" cy="28" r="10" stroke="white" strokeWidth="2.5" fill="none"/>
+            </svg>
+          </div>
+          <div>
+            <h1 className="font-black text-lg leading-none">Laundry <span className="font-light">by Chabad</span></h1>
+            <p className="text-white/70 text-xs mt-0.5">{t["customer.welcome"]}</p>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-lg mx-auto p-6 space-y-6">
+        {handoff.totalWeightKg !== undefined && (
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+            <div className="text-sm font-semibold text-brand-600 mb-1">
+              {t["employee.weight_kg"]}
+            </div>
+            <div className="text-2xl font-black text-gray-900">
+              {formatWeight(handoff.totalWeightKg, locale, t["unit.kg"])}
+            </div>
+          </div>
+        )}
+
+        {submitted ? (
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-10 text-center space-y-4">
+            <div className="mx-auto w-10 h-10 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin" />
+            <p className="text-gray-400 text-sm">{t["common.loading"]}</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-7 space-y-5">
+            <h2 className="text-xl font-bold text-gray-900">{t["customer.your_name"]}</h2>
+            {readyError && <p className="text-sm text-red-600">{readyError}</p>}
+            <CustomerInfoForm
+              orderId={handoff.orderId}
+              translations={t}
+              locale={locale}
+              onSubmitted={handleInfoSubmitted}
+            />
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
 export function CustomerPriceDisplay({
   customerDeviceId,
   serviceTypes,
@@ -67,6 +199,40 @@ export function CustomerPriceDisplay({
   // sharing the same customerDeviceId. Last-joined wins via presence timestamps.
   const isPrimaryRef = useRef<boolean>(true);
   const navigatedRef = useRef<boolean>(false);
+  const [pendingHandoff, setPendingHandoff] = useState<CustomerHandoff | null>(null);
+  const pendingHandoffRef = useRef<CustomerHandoff | null>(null);
+
+  useEffect(() => {
+    pendingHandoffRef.current = pendingHandoff;
+  }, [pendingHandoff]);
+
+  const navigateToSession = useCallback(
+    (sessionId: string, deviceId: string) => {
+      if (!isPrimaryRef.current || navigatedRef.current) return false;
+      navigatedRef.current = true;
+      const params = new URLSearchParams({ device: deviceId });
+      router.replace(`/customer/${sessionId}?${params.toString()}`);
+      return true;
+    },
+    [router]
+  );
+
+  const waitForSessionReady = useCallback(
+    async (sessionId: string) => {
+      for (let attempt = 1; attempt <= SESSION_READY_RETRY_ATTEMPTS; attempt += 1) {
+        const res = await fetch(`/api/sessions/${sessionId}`, { cache: "no-store" });
+        if (res.status === 401) {
+          router.replace("/auth/login");
+          return false;
+        }
+        if (res.ok) return true;
+        if (attempt < SESSION_READY_RETRY_ATTEMPTS) await wait(SESSION_READY_RETRY_MS);
+      }
+
+      return false;
+    },
+    [router]
+  );
 
   useEffect(() => {
     const instanceId = getOrCreateInstanceId();
@@ -74,25 +240,43 @@ export function CustomerPriceDisplay({
     let cancelled = false;
     const supabase = createClient();
 
-    function navigateToSession(sessionId: string, deviceId: string, handoff = false) {
-      if (cancelled || !isPrimaryRef.current || navigatedRef.current) return;
-      navigatedRef.current = true;
-      const params = new URLSearchParams({ device: deviceId });
-      if (handoff) params.set("handoff", "1");
-      router.replace(`/customer/${sessionId}?${params.toString()}`);
+    function mergePendingHandoff(session: SessionStartedPayload) {
+      const handoff = {
+        ...session,
+        customerDeviceId: session.customerDeviceId ?? customerDeviceId,
+      };
+      setPendingHandoff((current) =>
+        current?.sessionId === handoff.sessionId ? { ...current, ...handoff } : handoff
+      );
     }
 
     async function checkForSession() {
       if (!isPrimaryRef.current) return;
       try {
-        const res = await fetch("/api/sessions/active", { cache: "no-store" });
+        const res = await fetch("/api/sessions/active?target=customer", { cache: "no-store" });
         if (res.status === 401) {
           router.replace("/auth/login");
           return;
         }
         const json = (await res.json()) as ActiveSessionResponse;
         if (json.data?.id) {
-          navigateToSession(json.data.id, json.data.customerDeviceId);
+          const activeDeviceId = json.data.customerDeviceId ?? customerDeviceId;
+          const pending = pendingHandoffRef.current;
+          if (pending?.sessionId === json.data.id) {
+            setPendingHandoff((current) =>
+              current
+                ? {
+                    ...current,
+                    isReady: true,
+                    customerDeviceId: activeDeviceId,
+                    orderNumber: json.data?.order?.orderNumber ?? current.orderNumber,
+                    totalWeightKg: json.data?.order?.totalWeightKg ?? current.totalWeightKg,
+                  }
+                : current
+            );
+            return;
+          }
+          if (!cancelled) navigateToSession(json.data.id, activeDeviceId);
         }
       } catch {
         // Keep the price list visible if the fallback check fails.
@@ -108,11 +292,19 @@ export function CustomerPriceDisplay({
         const session = envelope.payload ?? (payload as SessionStartedPayload);
         if (!session?.sessionId) return;
         if (session.customerDeviceId && session.customerDeviceId !== customerDeviceId) return;
-        navigateToSession(
-          session.sessionId,
-          session.customerDeviceId ?? customerDeviceId,
-          session.isReady === false
-        );
+
+        if (session.isReady === false) {
+          mergePendingHandoff(session);
+          return;
+        }
+
+        const pending = pendingHandoffRef.current;
+        if (pending?.sessionId === session.sessionId) {
+          mergePendingHandoff({ ...session, isReady: true });
+          return;
+        }
+
+        if (!cancelled) navigateToSession(session.sessionId, session.customerDeviceId ?? customerDeviceId);
       })
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState<{ instanceId: string; joinedAt: number }>();
@@ -141,9 +333,21 @@ export function CustomerPriceDisplay({
       window.clearInterval(interval);
       void supabase.removeChannel(channel);
     };
-  }, [customerDeviceId, router]);
+  }, [customerDeviceId, navigateToSession, router]);
 
   const activeServices = serviceTypes.filter((service) => service.is_active);
+
+  if (pendingHandoff) {
+    return (
+      <PendingCustomerHandoff
+        handoff={pendingHandoff}
+        translations={t}
+        locale={locale}
+        onSessionReady={waitForSessionReady}
+        onNavigate={navigateToSession}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f8fefe]" dir={dir}>

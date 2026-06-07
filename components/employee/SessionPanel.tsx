@@ -9,6 +9,7 @@ import {
   type BroadcastEnvelope,
   type BagServiceConfirmedPayload,
   type OrderFinalizedPayload,
+  type WorkflowStepChangedPayload,
 } from "@/lib/realtime/events";
 import { formatCurrency, formatWeight, type Locale } from "@/lib/i18n";
 import { sendToPrinter } from "@/lib/print-client";
@@ -129,10 +130,13 @@ export function SessionPanel({
       onStatusAdvanced("confirmed");
       onOrderRefresh();
     }
-    if ([
-      SessionEvent.CUSTOMER_INFO_SUBMITTED,
-      SessionEvent.WORKFLOW_STEP_CHANGED,
-    ].includes(envelope.type)) {
+    if (envelope.type === SessionEvent.CUSTOMER_INFO_SUBMITTED) {
+      setWorkflowStep("bag_service_selection");
+      onOrderRefresh();
+    }
+    if (envelope.type === SessionEvent.WORKFLOW_STEP_CHANGED) {
+      const p = envelope.payload as WorkflowStepChangedPayload;
+      setWorkflowStep(p.step);
       onOrderRefresh();
     }
   }, [onOrderRefresh, onStatusAdvanced]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -189,7 +189,8 @@ export function CustomerKiosk({
   }, [onReturnToPriceList, router, step]);
 
   async function handleInfoSubmitted(info: CustomerInfoInput) {
-    void publish(SessionEvent.CUSTOMER_INFO_SUBMITTED, { sessionId, ...info });
+    await publish(SessionEvent.CUSTOMER_INFO_SUBMITTED, { sessionId, ...info });
+    await publish(SessionEvent.WORKFLOW_STEP_CHANGED, { step: "bag_service_selection", orderId: order.id });
     setSelectedServiceIds([]);
     setSelectedColor(null);
     setStep("bag_service_selection");
