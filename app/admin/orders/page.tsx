@@ -6,15 +6,16 @@ import { getI18n } from "@/lib/i18n/server";
 
 async function getOrders() {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("orders")
     .select(`
       id, order_number, status, payment_status,
       customer_name, customer_phone,
       total_weight_kg, total_amount, created_at,
-      employee:employees(full_name)
+      employee:employees!employee_id(full_name)
     `)
     .order("created_at", { ascending: false });
+  if (error) console.error("[AdminOrders] fetch failed:", error.message);
   return data ?? [];
 }
 
