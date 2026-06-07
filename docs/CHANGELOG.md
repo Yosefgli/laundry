@@ -42,3 +42,4 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 - Added customer.select_color translation key to all 3 locales; removed hardcoded Hebrew fallback in CustomerKiosk; excluded cancelled orders from active orders list (initial query + live upsert)
 - Fixed 3 bugs: (1) cancelled orders removed from recentOrders on session cancel; (2) language cookie scoped per screen path (employee/customer) so they don't affect each other; (3) transfer-to-customer navigates immediately after DB write, isReady broadcast fires in background
 - 2026-06-07: Filtered employee dashboard to active orders only and made customer handoff navigate immediately from preflight broadcast with handoff retry.
+- Fixed order status bugs: confirmed only after customer final approval (employee-side authenticated call); cancelled used on session cancel (was void)

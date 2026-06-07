@@ -73,6 +73,21 @@ export function SessionPanel({
     }
   }
 
+  async function finalizeOrderInDb() {
+    await fetch(`/api/orders/${order.id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "confirmed" }),
+    });
+    await fetch(`/api/sessions/${sessionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "complete" }),
+    });
+    onStatusAdvanced("confirmed");
+    onOrderRefresh();
+  }
+
   async function triggerReceiptPrint() {
     if (printingRef.current) return;
     printingRef.current = true;
@@ -104,8 +119,7 @@ export function SessionPanel({
     if (envelope.type === SessionEvent.CUSTOMER_ORDER_FINALIZED) {
       const p = envelope.payload as OrderFinalizedPayload;
       void triggerReceiptPrint();
-      onStatusAdvanced("confirmed");
-      onOrderRefresh();
+      void finalizeOrderInDb();
       void p;
     }
     if (envelope.type === SessionEvent.ORDER_CONFIRMED) {

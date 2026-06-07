@@ -43,7 +43,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
 
     const { data: session } = await supabase
       .from("sessions")
-      .select("id, status")
+      .select("id, status, order_id")
       .eq("id", id)
       .single();
 
@@ -83,6 +83,14 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
 
     if (error || !updatedSession) {
       return NextResponse.json({ data: null, error: error?.message }, { status: 500 });
+    }
+
+    if (session?.order_id) {
+      await supabase
+        .from("orders")
+        .update({ status: "confirmed" })
+        .eq("id", session.order_id)
+        .in("status", ["draft", "weighed"]);
     }
 
     await logAudit(supabase, {
@@ -133,7 +141,7 @@ export async function DELETE(request: NextRequest, ctx: RouteContext) {
     if (session.order_id) {
       await supabase
         .from("orders")
-        .update({ status: "void" })
+        .update({ status: "cancelled" })
         .eq("id", session.order_id)
         .in("status", ["draft", "weighed"]);
     }

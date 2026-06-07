@@ -260,20 +260,6 @@ export function CustomerKiosk({
   async function handleFinalizeOrder() {
     setSubmitting(true);
     try {
-      // Advance order to confirmed (already done per bag, just ensure)
-      await fetch(`/api/orders/${order.id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "confirmed" }),
-      }).catch(() => undefined);
-
-      // Complete session
-      await fetch(`/api/sessions/${sessionId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "complete" }),
-      });
-
       void publish(SessionEvent.CUSTOMER_ORDER_FINALIZED, {
         orderId: order.id,
         orderNumber: order.order_number,
