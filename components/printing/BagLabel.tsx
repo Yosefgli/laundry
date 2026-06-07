@@ -42,7 +42,7 @@ export function BagLabel({ order, translations: t, printLabel }: BagLabelProps) 
       {status === "printing"
         ? "..."
         : status === "error"
-        ? "שגיאת הדפסה"
+        ? (t["print.error"] ?? "Print Error")
         : (printLabel ?? t["print.print_label"])}
     </Button>
   );

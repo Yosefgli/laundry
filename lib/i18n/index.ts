@@ -151,6 +151,18 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "print.print_receipt": "Print Receipt",
     "print.print_label": "Print Bag Label",
     "print.print_all": "Print Receipt + Label",
+    "print.receipt": "Print Receipt",
+    "print.label": "Print Label",
+    "print.error": "Print Error",
+    "print.error_short": "Error",
+    "print.pay_at_store": "Please go to the store to pay",
+
+    "color.white": "White",
+    "color.colorful": "Colorful",
+    "color.dark": "Dark",
+
+    "customer.search_country": "Search country...",
+    "customer.select_country": "Select Country",
 
     "admin.title": "Admin - Laundry Ops",
     "admin.orders_today": "Orders Today",
@@ -340,6 +352,18 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "print.print_receipt": "הדפס קבלה",
     "print.print_label": "הדפס תווית",
     "print.print_all": "הדפס קבלה ותווית",
+    "print.receipt": "הדפס קבלה",
+    "print.label": "הדפס תווית",
+    "print.error": "שגיאת הדפסה",
+    "print.error_short": "שגיאה",
+    "print.pay_at_store": "יש לגשת לחנות לתשלום",
+
+    "color.white": "לבן",
+    "color.colorful": "צבעוני",
+    "color.dark": "כהה",
+
+    "customer.search_country": "חפש מדינה...",
+    "customer.select_country": "בחר מדינה",
 
     "admin.title": "ניהול - Laundry Ops",
     "admin.orders_today": "הזמנות היום",
@@ -529,6 +553,18 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "print.print_receipt": "ငွေလက်ခံ ထုတ်မည်",
     "print.print_label": "အိတ်တံဆိပ် ထုတ်မည်",
     "print.print_all": "ငွေလက်ခံနှင့် အိတ်တံဆိပ် ထုတ်မည်",
+    "print.receipt": "ငွေလက်ခံ ထုတ်မည်",
+    "print.label": "တံဆိပ် ထုတ်မည်",
+    "print.error": "ပုံနှိပ်မှု မှားယွင်း",
+    "print.error_short": "မှားယွင်း",
+    "print.pay_at_store": "ဆိုင်သို့ လာရောက် ငွေပေးချေပါ",
+
+    "color.white": "အဖြူ",
+    "color.colorful": "အရောင်စုံ",
+    "color.dark": "အမှောင်",
+
+    "customer.search_country": "နိုင်ငံ ရှာမည်...",
+    "customer.select_country": "နိုင်ငံ ရွေးမည်",
 
     "admin.title": "အုပ်ချုပ်ရေး - Laundry Ops",
     "admin.orders_today": "ယနေ့အမှာများ",

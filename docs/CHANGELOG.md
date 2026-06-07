@@ -39,3 +39,5 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 - Added customer screen navigation button to employee dashboard header (nav.customer_screen translation key + Button in EmployeeDashboard.tsx)
 - Fixed customer screen white screen (removed inline CustomerKiosk from CustomerPriceDisplay; always redirect to /customer/[sessionId]) + added per-tab presence-based primary instance to prevent two devices on same account from both navigating; added spinner fallback in CustomerKiosk when pendingBag is missing
 - fix: CustomerPriceDisplay now ignores SESSION_STARTED broadcasts with isReady=false — prevents 404 race condition where customer navigated to /customer/[sessionId] before the DB write completed
+
+- Print route always uses English translations; all print-component error strings now use i18n keys; added color.*, print.error/label/pay_at_store keys to all 3 locales; phone prefix picker replaced with searchable country-per-row overlay defaulting to Israel.

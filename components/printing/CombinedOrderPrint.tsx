@@ -51,7 +51,7 @@ export function CombinedOrderPrint({
       {status === "printing"
         ? "..."
         : status === "error"
-        ? "שגיאת הדפסה"
+        ? (t["print.error"] ?? "Print Error")
         : (printLabel ?? t["print.print_all"])}
     </Button>
   );
