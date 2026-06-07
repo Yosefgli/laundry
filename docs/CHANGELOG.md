@@ -46,3 +46,4 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 - 2026-06-07: Filtered employee dashboard to active orders only and made customer handoff navigate immediately from preflight broadcast with handoff retry.
 - Fixed order status bugs: confirmed only after customer final approval (employee-side authenticated call); cancelled used on session cancel (was void)
 - Fixed admin orders page showing empty: disambiguated ambiguous FK join  (orders has two FKs to employees: employee_id + delivered_by)
+- Fixed admin orders delete: filter void orders from fetch query so soft-deleted orders don't reappear on refresh.

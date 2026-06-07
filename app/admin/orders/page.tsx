@@ -14,6 +14,7 @@ async function getOrders() {
       total_weight_kg, total_amount, created_at,
       employee:employees!employee_id(full_name)
     `)
+    .neq("status", "void")
     .order("created_at", { ascending: false });
   if (error) console.error("[AdminOrders] fetch failed:", error.message);
   return data ?? [];
