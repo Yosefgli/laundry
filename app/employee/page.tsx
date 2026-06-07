@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { EmployeeDashboard } from "@/components/employee/EmployeeDashboard";
 import { getI18n } from "@/lib/i18n/server";
+import { getBackgroundSessionsForEmployee } from "@/lib/sessions/backgroundSessions";
 
 async function getEmployee() {
   const supabase = await createClient();
@@ -31,7 +32,10 @@ export default async function EmployeePage() {
   if (!employee) redirect("/auth/login");
 
   const { locale, translations: i18nTranslations } = await getI18n();
-  const recentOrders = await getRecentOrders();
+  const [recentOrders, backgroundSessions] = await Promise.all([
+    getRecentOrders(),
+    getBackgroundSessionsForEmployee(employee.id),
+  ]);
 
   return (
     <EmployeeDashboard
@@ -39,6 +43,7 @@ export default async function EmployeePage() {
       translations={i18nTranslations}
       locale={locale}
       recentOrders={recentOrders}
+      initialBackgroundSessions={backgroundSessions}
     />
   );
 }

@@ -112,6 +112,9 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "employee.back_dashboard": "Back to Dashboard",
     "employee.order_saved": "Order saved",
     "employee.order_edit_error": "Check the order details and try again",
+    "employee.active_session_in_progress": "Active session in progress",
+    "employee.resume_session": "Continue session",
+    "employee.new_order_anyway": "New order anyway",
 
     "customer.welcome": "Welcome",
     "customer.price_list_title": "Price List",
@@ -313,6 +316,9 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "employee.back_dashboard": "חזרה ללוח העבודה",
     "employee.order_saved": "ההזמנה נשמרה",
     "employee.order_edit_error": "בדוק את פרטי ההזמנה ונסה שוב",
+    "employee.active_session_in_progress": "יש סשן פעיל ברקע",
+    "employee.resume_session": "המשך סשן",
+    "employee.new_order_anyway": "הזמנה חדשה בכל זאת",
 
     "customer.welcome": "ברוכים הבאים",
     "customer.price_list_title": "מחירון",
@@ -514,6 +520,9 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "employee.back_dashboard": "အလုပ်မျက်နှာပြင်သို့ ပြန်မည်",
     "employee.order_saved": "အမှာ သိမ်းပြီး",
     "employee.order_edit_error": "အမှာအသေးစိတ်ကို စစ်ပြီး ထပ်ကြိုးစားပါ",
+    "employee.active_session_in_progress": "နောက်ခံတွင် session တစ်ခု ရှိနေသည်",
+    "employee.resume_session": "session ဆက်လုပ်မည်",
+    "employee.new_order_anyway": "အမှာသစ် ဖွင့်မည်",
 
     "customer.welcome": "ကြိုဆိုပါသည်",
     "customer.price_list_title": "ဈေးနှုန်းစာရင်း",
