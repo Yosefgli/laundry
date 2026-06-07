@@ -148,7 +148,10 @@ export function NewOrderForm({
       const pendingItemId: string | null = firstItems[0]?.id ?? null;
 
       void initialHandoff;
-      await publishSessionStarted({
+      // Navigate immediately; broadcast the isReady signal in the background.
+      // The order is in the DB at this point so fetchOrder in the parent will succeed.
+      onCreated(orderId, sessionJson.data.id);
+      void publishSessionStarted({
         sessionId: sessionJson.data.id,
         orderId,
         customerDeviceId: sessionJson.data.customer_device_id ?? customerDeviceId,
@@ -159,8 +162,6 @@ export function NewOrderForm({
         pendingItemId,
         orderItems: firstItems,
       });
-
-      onCreated(orderId, sessionJson.data.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : t["common.error"]);
     } finally {

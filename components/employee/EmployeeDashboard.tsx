@@ -425,20 +425,26 @@ export function EmployeeDashboard({
         )}
 
         {/* Active Session */}
-        {view === "active_session" && activeSessionId && activeOrder && (
-          <div>
-            <SessionPanel
-              sessionId={activeSessionId}
-              order={activeOrder}
-              initialWorkflowStep={activeSessionStep}
-              translations={t}
-              locale={locale}
-              onStatusAdvanced={(s) => setActiveOrder((o) => o ? { ...o, status: s as Order["status"] } : o)}
-              onMarkPaid={handleMarkPaid}
-              onCancelSession={() => { setView("dashboard"); setActiveOrder(null); void refreshBackgroundSessions(); }}
-              onOrderRefresh={handleOrderRefresh}
-            />
-            {activeOrder && (
+        {view === "active_session" && activeSessionId && (
+          activeOrder ? (
+            <div>
+              <SessionPanel
+                sessionId={activeSessionId}
+                order={activeOrder}
+                initialWorkflowStep={activeSessionStep}
+                translations={t}
+                locale={locale}
+                onStatusAdvanced={(s) => setActiveOrder((o) => o ? { ...o, status: s as Order["status"] } : o)}
+                onMarkPaid={handleMarkPaid}
+                onCancelSession={() => {
+                  const oid = activeOrderId;
+                  setView("dashboard");
+                  setActiveOrder(null);
+                  if (oid) setRecentOrders((prev) => prev.filter((o) => o.id !== oid));
+                  void refreshBackgroundSessions();
+                }}
+                onOrderRefresh={handleOrderRefresh}
+              />
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <CombinedOrderPrint
                   order={activeOrder}
@@ -450,8 +456,12 @@ export function EmployeeDashboard({
                   {t["employee.back_dashboard"]}
                 </Button>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="flex justify-center p-8">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+            </div>
+          )
         )}
 
         {/* Order Detail */}

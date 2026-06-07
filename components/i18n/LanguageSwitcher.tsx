@@ -22,7 +22,12 @@ export function LanguageSwitcher({ locale, translations: t }: LanguageSwitcherPr
   const searchParams = useSearchParams();
 
   function changeLocale(nextLocale: Locale) {
-    document.cookie = `${I18N_COOKIE}=${nextLocale}; path=/; max-age=31536000; SameSite=Lax`;
+    const cookiePath = pathname.startsWith("/customer")
+      ? "/customer"
+      : pathname.startsWith("/employee")
+        ? "/employee"
+        : "/";
+    document.cookie = `${I18N_COOKIE}=${nextLocale}; path=${cookiePath}; max-age=31536000; SameSite=Lax`;
 
     const params = new URLSearchParams(searchParams.toString());
     params.delete("locale");
