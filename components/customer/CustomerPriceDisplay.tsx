@@ -74,10 +74,12 @@ export function CustomerPriceDisplay({
     let cancelled = false;
     const supabase = createClient();
 
-    function navigateToSession(sessionId: string, deviceId: string) {
+    function navigateToSession(sessionId: string, deviceId: string, handoff = false) {
       if (cancelled || !isPrimaryRef.current || navigatedRef.current) return;
       navigatedRef.current = true;
-      router.replace(`/customer/${sessionId}?device=${encodeURIComponent(deviceId)}`);
+      const params = new URLSearchParams({ device: deviceId });
+      if (handoff) params.set("handoff", "1");
+      router.replace(`/customer/${sessionId}?${params.toString()}`);
     }
 
     async function checkForSession() {
@@ -106,27 +108,12 @@ export function CustomerPriceDisplay({
         const session = envelope.payload ?? (payload as SessionStartedPayload);
         if (!session?.sessionId) return;
         if (session.customerDeviceId && session.customerDeviceId !== customerDeviceId) return;
-        if (session.isReady === false) return; // pre-flight broadcast — DB write not yet committed
-        navigateToSession(session.sessionId, session.customerDeviceId ?? customerDeviceId);
+        navigateToSession(
+          session.sessionId,
+          session.customerDeviceId ?? customerDeviceId,
+          session.isReady === false
+        );
       })
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "sessions",
-          filter: `customer_device_id=eq.${customerDeviceId}`,
-        },
-        (payload) => {
-          const session = payload.new as {
-            id?: string;
-            status?: string;
-            customer_device_id?: string | null;
-          };
-          if (session.status !== "active" || !session.id) return;
-          navigateToSession(session.id, session.customer_device_id ?? customerDeviceId);
-        }
-      )
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState<{ instanceId: string; joinedAt: number }>();
         const allInstances = Object.values(state).flat();

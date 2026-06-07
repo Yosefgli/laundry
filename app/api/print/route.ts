@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const bwipjs = require("bwip-js") as { toBuffer: (opts: Record<string, unknown>) => Promise<Buffer> };
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireEmployee } from "@/lib/auth";
-import { getI18n } from "@/lib/i18n/server";
+import { getServerTranslations } from "@/lib/i18n/server";
 import { formatCurrency, formatWeight, localeToIntl } from "@/lib/i18n";
 import { buildEan13 } from "@/lib/barcode";
 
@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { locale, translations: t } = await getI18n();
+    const t = await getServerTranslations("en");
+    const locale = "en";
     const shopName = process.env.NEXT_PUBLIC_SHOP_NAME ?? "";
     const shopAddress = process.env.NEXT_PUBLIC_SHOP_ADDRESS ?? "";
     const taxId = process.env.NEXT_PUBLIC_TAX_ID ?? "";

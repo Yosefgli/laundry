@@ -159,7 +159,6 @@ export function NewOrderForm({
         pendingItemId,
         orderItems: firstItems,
       });
-
       onCreated(orderId, sessionJson.data.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : t["common.error"]);

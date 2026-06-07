@@ -6,6 +6,15 @@ export type PhoneCountryCodeOption = {
   label: string;
 };
 
+export type PhoneCountryOption = {
+  countryCode: CountryCode;
+  dialCode: string;
+  name: string;
+};
+
+export const DEFAULT_PHONE_COUNTRY: CountryCode = "IL";
+
+// Deduplicated dial codes for schema validation (e.g. "+972", "+1", …)
 export const PHONE_COUNTRY_CODES = Array.from(
   new Set(getCountries().map((country) => `+${getCountryCallingCode(country)}`))
 ).sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)));
@@ -22,6 +31,18 @@ function getRegionName(country: CountryCode, locale: string): string {
   }
 }
 
+/** One entry per country (countries sharing a dial code get separate rows). */
+export function getPhoneCountryOptions(locale: string): PhoneCountryOption[] {
+  return getCountries()
+    .map((country) => ({
+      countryCode: country,
+      dialCode: `+${getCountryCallingCode(country)}`,
+      name: getRegionName(country, locale),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, locale));
+}
+
+/** Legacy grouped options (kept for any remaining callers). */
 export function getPhoneCountryCodeOptions(locale: string): PhoneCountryCodeOption[] {
   const countriesByCode = new Map<string, string[]>();
 

@@ -8,7 +8,9 @@ import { OrderStatusBadge, PaymentStatusBadge } from "@/components/ui/StatusBadg
 import { Button } from "@/components/ui/Button";
 import { CombinedOrderPrint } from "@/components/printing/CombinedOrderPrint";
 import { formatCurrency, type Locale } from "@/lib/i18n";
+import { ACTIVE_ORDER_STATUSES, isActiveOrderStatus } from "@/lib/orders/activeOrderStatus";
 import type { Database } from "@/lib/db/database.types";
+import type { BackgroundSession } from "@/lib/sessions/backgroundSessions";
 import { createClient } from "@/lib/supabase/client";
 
 type Employee = { id: string; full_name: string; role: string };
@@ -42,11 +44,12 @@ interface EmployeeDashboardProps {
   translations: Record<string, string>;
   locale: Locale;
   recentOrders: RecentOrder[];
+  initialBackgroundSessions: BackgroundSession[];
 }
 
-type OrderStatus = "draft" | "weighed" | "confirmed" | "washing" | "drying" | "ironing" | "ready" | "delivered" | "cancelled" | "void";
+type OrderStatus = Database["public"]["Enums"]["order_status"];
 
-const WORK_BOARD_STATUSES: OrderStatus[] = ["draft", "weighed", "confirmed", "washing", "drying", "ironing", "ready"];
+const WORK_BOARD_STATUSES: OrderStatus[] = [...ACTIVE_ORDER_STATUSES];
 
 const STATUS_COLUMN_COLORS: Record<OrderStatus, { bg: string; border: string; badge: string; count: string }> = {
   draft:     { bg: "bg-gray-50",    border: "border-gray-200",   badge: "bg-gray-100 text-gray-700",    count: "bg-gray-200 text-gray-700" },
@@ -62,6 +65,16 @@ const STATUS_COLUMN_COLORS: Record<OrderStatus, { bg: string; border: string; ba
 };
 
 type View = "dashboard" | "work_board" | "new_order" | "active_session" | "scan" | "order_detail";
+
+function formatTimeAgo(isoDate: string, locale: Locale): string {
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const diffMins = Math.round(diffMs / 60000);
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  if (Math.abs(diffMins) < 60) return rtf.format(-diffMins, "minute");
+  const diffHours = Math.round(diffMins / 60);
+  if (Math.abs(diffHours) < 24) return rtf.format(-diffHours, "hour");
+  return rtf.format(-Math.round(diffHours / 24), "day");
+}
 
 function toArray<T>(value: T | T[] | null | undefined): T[] {
   if (!value) return [];
@@ -83,6 +96,7 @@ export function EmployeeDashboard({
   translations: t,
   locale,
   recentOrders: initialOrders,
+  initialBackgroundSessions,
 }: EmployeeDashboardProps) {
   const supabase = createClient();
   const [view, setView] = useState<View>("dashboard");
@@ -92,7 +106,10 @@ export function EmployeeDashboard({
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const [scanResult, setScanResult] = useState<Order | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
-  const [recentOrders, setRecentOrders] = useState(initialOrders);
+  const [recentOrders, setRecentOrders] = useState(
+    initialOrders.filter((order) => isActiveOrderStatus(order.status))
+  );
+  const [backgroundSessions, setBackgroundSessions] = useState<BackgroundSession[]>(initialBackgroundSessions);
 
   const deviceId = `employee-${employee.id}`;
 
@@ -100,6 +117,7 @@ export function EmployeeDashboard({
     setActiveOrderId(orderId);
     setActiveSessionId(sessionId);
     setActiveSessionStep("customer_info");
+    setBackgroundSessions([]);
     fetchOrder(orderId);
     setView("active_session");
   }
@@ -125,7 +143,7 @@ export function EmployeeDashboard({
 
   function upsertRecentOrder(order: Order) {
     setRecentOrders((prev) => {
-      if (["delivered", "void"].includes(order.status)) {
+      if (!isActiveOrderStatus(order.status)) {
         return prev.filter((item) => item.id !== order.id);
       }
 
@@ -141,6 +159,29 @@ export function EmployeeDashboard({
       const withoutCurrent = prev.filter((item) => item.id !== order.id);
       return [summary, ...withoutCurrent].slice(0, 20);
     });
+  }
+
+  async function refreshBackgroundSessions() {
+    const res = await fetch("/api/sessions/active");
+    const json = await res.json();
+    setBackgroundSessions(json.data ?? []);
+  }
+
+  async function resumeBackgroundSession(session: BackgroundSession) {
+    setActiveSessionId(session.id);
+    setActiveOrderId(session.order.id);
+    setActiveSessionStep(session.workflow_step);
+    setBackgroundSessions([]);
+    await fetchOrder(session.order.id);
+    setView("active_session");
+  }
+
+  function handleNewOrderClick() {
+    if (backgroundSessions.length > 0) {
+      setView("dashboard");
+    } else {
+      setView("new_order");
+    }
   }
 
   async function openOrder(orderId: string) {
@@ -233,7 +274,7 @@ export function EmployeeDashboard({
             <Button
               variant={view === "new_order" ? "primary" : "secondary"}
               size="sm"
-              onClick={() => setView("new_order")}
+              onClick={handleNewOrderClick}
             >
               {t["employee.new_order"]}
             </Button>
@@ -250,9 +291,39 @@ export function EmployeeDashboard({
         {/* Dashboard */}
         {view === "dashboard" && (
           <div className="space-y-3">
-              <Button size="xl" className="w-full" onClick={() => setView("new_order")}>
+              <Button size="xl" className="w-full" onClick={handleNewOrderClick}>
                 + {t["employee.new_order"]}
               </Button>
+
+              {backgroundSessions.length > 0 && (
+                <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 inline-block animate-pulse" />
+                    <span className="text-sm font-semibold text-amber-800">{t["employee.active_session_in_progress"]}</span>
+                  </div>
+                  {backgroundSessions.map((session) => (
+                    <div key={session.id} className="bg-white rounded-xl border border-amber-200 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-gray-900">{session.order.order_number}</span>
+                        <span className="text-xs text-gray-400">{formatTimeAgo(session.created_at, locale)}</span>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {session.order.total_weight_kg} {t["unit.kg"]}
+                        {session.order.customer_name && ` · ${session.order.customer_name}`}
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <Button size="sm" className="flex-1" onClick={() => resumeBackgroundSession(session)}>
+                          {t["employee.resume_session"]}
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => setView("new_order")}>
+                          {t["employee.new_order_anyway"]}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-100 font-semibold text-sm text-gray-700 bg-gray-50/50">{t["employee.active_orders"]}</div>
               {recentOrders.length === 0 ? (
@@ -357,20 +428,26 @@ export function EmployeeDashboard({
         )}
 
         {/* Active Session */}
-        {view === "active_session" && activeSessionId && activeOrder && (
-          <div>
-            <SessionPanel
-              sessionId={activeSessionId}
-              order={activeOrder}
-              initialWorkflowStep={activeSessionStep}
-              translations={t}
-              locale={locale}
-              onStatusAdvanced={(s) => setActiveOrder((o) => o ? { ...o, status: s as Order["status"] } : o)}
-              onMarkPaid={handleMarkPaid}
-              onCancelSession={() => { setView("dashboard"); setActiveOrder(null); }}
-              onOrderRefresh={handleOrderRefresh}
-            />
-            {activeOrder && (
+        {view === "active_session" && activeSessionId && (
+          activeOrder ? (
+            <div>
+              <SessionPanel
+                sessionId={activeSessionId}
+                order={activeOrder}
+                initialWorkflowStep={activeSessionStep}
+                translations={t}
+                locale={locale}
+                onStatusAdvanced={(s) => setActiveOrder((o) => o ? { ...o, status: s as Order["status"] } : o)}
+                onMarkPaid={handleMarkPaid}
+                onCancelSession={() => {
+                  const oid = activeOrderId;
+                  setView("dashboard");
+                  setActiveOrder(null);
+                  if (oid) setRecentOrders((prev) => prev.filter((o) => o.id !== oid));
+                  void refreshBackgroundSessions();
+                }}
+                onOrderRefresh={handleOrderRefresh}
+              />
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <CombinedOrderPrint
                   order={activeOrder}
@@ -382,8 +459,12 @@ export function EmployeeDashboard({
                   {t["employee.back_dashboard"]}
                 </Button>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="flex justify-center p-8">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+            </div>
+          )
         )}
 
         {/* Order Detail */}

@@ -1,3 +1,4 @@
+- 2026-06-07: Added active background session detection — "New Order" button now intercepts when an active session exists, showing an amber banner card above the orders list with Continue/New-order-anyway options; refreshes after session cancel.
 - 2026-05-20: Major workflow redesign — multi-bag customer flow (per-bag service+color selection, bag summary, add-bag loop), celebration screen with bubble animation, EAN-13 payment barcode on receipts with admin prefix config, auto-print label per bag on employee side, payment gate on delivery was already in place.
 - 2026-05-11: Full MVP scaffold — Next.js App Router, Supabase schema (4 migrations), RLS, realtime session channels, employee dashboard, customer kiosk, barcode/receipt printing, admin panel (orders, pricing, workstations, settings, translations, audit log).
 - 2026-05-11: Add global language switcher and automatic customer screen session detection.
@@ -28,10 +29,8 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 - 2026-05-19: Rendered active customer session directly from realtime handoff payload to avoid slow dynamic route navigation.
 - 2026-05-19: Added optimistic customer handoff before session API completion, with ready-state reconciliation.
 - 2026-05-20: Optimized employee-to-customer realtime handoff with pre-API optimistic broadcast and ready-state reconciliation.
-
 - 2026-05-20: 5 customer-side fixes — session auto-close via Presence (grace 15s), multi-select laundry type, completed-bags indicator on service selection, bottom padding on confirm button, full-screen celebration overlay.
 - Color selection → single-select, laundry type → multi-select; each bag a standalone card in summary; OrderEditor: ReceiptPrint + per-bag ItemLabelPrint buttons replacing CombinedOrderPrint.
-
 - Full admin CRUD for service types (add/edit/delete with translations) and employees (create auth user + employee row, edit name/role/password, toggle active, delete with cascade); added email column to employees table; 4 new audit_action enum values; 4 new API route files; ServicesManager + EmployeesManager client components.
 - Fixed handle_new_user trigger search_path (relation employees does not exist error) + removed double-insert from admin create-employee route
 - Removed workstations feature entirely: deleted admin UI, CRUD API routes, WorkstationManager component; stripped workstation_id from orders/sessions schema + API; removed workstation join from print route; dropped workstations table + FK columns via Supabase migration.
@@ -39,3 +38,8 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 - Added customer screen navigation button to employee dashboard header (nav.customer_screen translation key + Button in EmployeeDashboard.tsx)
 - Fixed customer screen white screen (removed inline CustomerKiosk from CustomerPriceDisplay; always redirect to /customer/[sessionId]) + added per-tab presence-based primary instance to prevent two devices on same account from both navigating; added spinner fallback in CustomerKiosk when pendingBag is missing
 - fix: CustomerPriceDisplay now ignores SESSION_STARTED broadcasts with isReady=false — prevents 404 race condition where customer navigated to /customer/[sessionId] before the DB write completed
+- Print route always uses English translations; all print-component error strings now use i18n keys; added color.*, print.error/label/pay_at_store keys to all 3 locales; phone prefix picker replaced with searchable country-per-row overlay defaulting to Israel.
+- Added customer.select_color translation key to all 3 locales; removed hardcoded Hebrew fallback in CustomerKiosk; excluded cancelled orders from active orders list (initial query + live upsert)
+- Fixed 3 bugs: (1) cancelled orders removed from recentOrders on session cancel; (2) language cookie scoped per screen path (employee/customer) so they don't affect each other; (3) transfer-to-customer navigates immediately after DB write, isReady broadcast fires in background
+- 2026-06-07: Filtered employee dashboard to active orders only and made customer handoff navigate immediately from preflight broadcast with handoff retry.
+- Fixed order status bugs: confirmed only after customer final approval (employee-side authenticated call); cancelled used on session cancel (was void)

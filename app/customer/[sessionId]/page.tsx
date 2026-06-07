@@ -7,6 +7,7 @@ import { getAuthenticatedEmployee } from "@/lib/auth";
 
 type RouteProps = {
   params: Promise<{ sessionId: string }>;
+  searchParams?: Promise<{ handoff?: string | string[] }>;
 };
 
 type ServiceTypeRow = Database["public"]["Tables"]["service_types"]["Row"];
@@ -18,7 +19,14 @@ type ServiceTypesQueryRow = ServiceTypeRow & {
   pricing_rules: PricingRuleRow | PricingRuleRow[] | null;
 };
 
-async function getSessionData(sessionId: string) {
+const HANDOFF_LOOKUP_RETRIES = 20;
+const HANDOFF_LOOKUP_RETRY_MS = 100;
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchSessionData(sessionId: string) {
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("sessions")
@@ -39,6 +47,20 @@ async function getSessionData(sessionId: string) {
   return data;
 }
 
+async function getSessionData(sessionId: string, retryHandoff: boolean) {
+  const maxAttempts = retryHandoff ? HANDOFF_LOOKUP_RETRIES : 1;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const session = await fetchSessionData(sessionId);
+    if (session) return session;
+    if (attempt < maxAttempts) await wait(HANDOFF_LOOKUP_RETRY_MS);
+  }
+  return null;
+}
+
+function isHandoff(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value.includes("1") : value === "1";
+}
+
 async function getServiceTypes(): Promise<ServiceTypeWithPricingRules[]> {
   const supabase = createServiceClient();
   const { data } = await supabase
@@ -57,12 +79,13 @@ async function getServiceTypes(): Promise<ServiceTypeWithPricingRules[]> {
   }));
 }
 
-export default async function CustomerSessionPage({ params }: RouteProps) {
+export default async function CustomerSessionPage({ params, searchParams }: RouteProps) {
   const { sessionId } = await params;
+  const search = searchParams ? await searchParams : {};
   const employee = await getAuthenticatedEmployee();
   if (!employee) redirect("/auth/login");
 
-  const session = await getSessionData(sessionId);
+  const session = await getSessionData(sessionId, isHandoff(search.handoff));
   if (!session) notFound();
 
   const [{ locale, translations }, serviceTypes] = await Promise.all([

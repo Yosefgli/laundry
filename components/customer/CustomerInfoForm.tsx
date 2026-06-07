@@ -1,17 +1,22 @@
 "use client";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { PHONE_COUNTRY_CODES, type CustomerInfoInput } from "@/lib/schemas/order";
-import { getPhoneCountryCodeOptions } from "@/lib/phoneCountryCodes";
+import { getCountries, getCountryCallingCode } from "libphonenumber-js/min";
+import type { CountryCode } from "libphonenumber-js/min";
+import type { CustomerInfoInput } from "@/lib/schemas/order";
+import { DEFAULT_PHONE_COUNTRY } from "@/lib/phoneCountryCodes";
+import { CountryPicker } from "@/components/ui/CountryPicker";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
 import type { Locale } from "@/lib/i18n";
 
+const VALID_COUNTRIES = new Set<string>(getCountries());
+
 const CustomerInfoFormSchema = z.object({
   name: z.string().min(1).max(200).trim(),
-  phoneCountryCode: z.string().refine((code) => PHONE_COUNTRY_CODES.includes(code)),
+  selectedCountry: z.string().refine((c) => VALID_COUNTRIES.has(c), { message: "Invalid country" }),
   phoneNumber: z.string().min(4).max(20).regex(/^[\d\s-]+$/),
   notes: z.string().max(500).optional(),
 });
@@ -34,16 +39,16 @@ export function CustomerInfoForm({
   disabled = false,
 }: CustomerInfoFormProps) {
   const [loading, setLoading] = useState(false);
-  const phoneCountryOptions = getPhoneCountryCodeOptions(locale);
 
   const {
     register,
     handleSubmit,
+    control,
     setError,
     formState: { errors },
   } = useForm<CustomerInfoFormInput>({
     resolver: zodResolver(CustomerInfoFormSchema),
-    defaultValues: { phoneCountryCode: "" },
+    defaultValues: { selectedCountry: DEFAULT_PHONE_COUNTRY },
   });
 
   async function onSubmit(data: CustomerInfoFormInput) {
@@ -57,9 +62,10 @@ export function CustomerInfoForm({
         return;
       }
 
+      const dialCode = `+${getCountryCallingCode(data.selectedCountry as CountryCode)}`;
       const customerInfo: CustomerInfoInput = {
         name: data.name,
-        phone: `${data.phoneCountryCode}${localNumber}`,
+        phone: `${dialCode}${localNumber}`,
         notes: data.notes,
       };
 
@@ -87,26 +93,22 @@ export function CustomerInfoForm({
         {...register("name")}
       />
       <div className="flex flex-col gap-1">
-        <label htmlFor="phoneCountryCode" className="text-sm font-medium text-gray-700">
+        <label className="text-sm font-medium text-gray-700">
           {t["customer.phone_country_code"]}
         </label>
-        <select
-          id="phoneCountryCode"
-          className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand-500"
-          {...register("phoneCountryCode")}
-        >
-          <option value="" disabled>
-            {t["customer.select_phone_country_code"]}
-          </option>
-          {phoneCountryOptions.map((option) => (
-            <option key={option.code} value={option.code}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        {errors.phoneCountryCode && (
-          <p className="text-xs text-red-600">{errors.phoneCountryCode.message}</p>
-        )}
+        <Controller
+          name="selectedCountry"
+          control={control}
+          render={({ field }) => (
+            <CountryPicker
+              value={field.value}
+              onChange={field.onChange}
+              locale={locale}
+              translations={t}
+              error={errors.selectedCountry?.message}
+            />
+          )}
+        />
       </div>
       <Input
         label={t["customer.phone"]}

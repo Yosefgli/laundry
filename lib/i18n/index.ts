@@ -112,6 +112,9 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "employee.back_dashboard": "Back to Dashboard",
     "employee.order_saved": "Order saved",
     "employee.order_edit_error": "Check the order details and try again",
+    "employee.active_session_in_progress": "Active session in progress",
+    "employee.resume_session": "Continue session",
+    "employee.new_order_anyway": "New order anyway",
 
     "customer.welcome": "Welcome",
     "customer.price_list_title": "Price List",
@@ -151,6 +154,19 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "print.print_receipt": "Print Receipt",
     "print.print_label": "Print Bag Label",
     "print.print_all": "Print Receipt + Label",
+    "print.receipt": "Print Receipt",
+    "print.label": "Print Label",
+    "print.error": "Print Error",
+    "print.error_short": "Error",
+    "print.pay_at_store": "Please go to the store to pay",
+
+    "color.white": "White",
+    "color.colorful": "Colorful",
+    "color.dark": "Dark",
+
+    "customer.select_color": "Wash Color",
+    "customer.search_country": "Search country...",
+    "customer.select_country": "Select Country",
 
     "admin.title": "Admin - Laundry Ops",
     "admin.orders_today": "Orders Today",
@@ -301,6 +317,9 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "employee.back_dashboard": "חזרה ללוח העבודה",
     "employee.order_saved": "ההזמנה נשמרה",
     "employee.order_edit_error": "בדוק את פרטי ההזמנה ונסה שוב",
+    "employee.active_session_in_progress": "יש סשן פעיל ברקע",
+    "employee.resume_session": "המשך סשן",
+    "employee.new_order_anyway": "הזמנה חדשה בכל זאת",
 
     "customer.welcome": "ברוכים הבאים",
     "customer.price_list_title": "מחירון",
@@ -340,6 +359,19 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "print.print_receipt": "הדפס קבלה",
     "print.print_label": "הדפס תווית",
     "print.print_all": "הדפס קבלה ותווית",
+    "print.receipt": "הדפס קבלה",
+    "print.label": "הדפס תווית",
+    "print.error": "שגיאת הדפסה",
+    "print.error_short": "שגיאה",
+    "print.pay_at_store": "יש לגשת לחנות לתשלום",
+
+    "color.white": "לבן",
+    "color.colorful": "צבעוני",
+    "color.dark": "כהה",
+
+    "customer.select_color": "צבע הכביסה",
+    "customer.search_country": "חפש מדינה...",
+    "customer.select_country": "בחר מדינה",
 
     "admin.title": "ניהול - Laundry Ops",
     "admin.orders_today": "הזמנות היום",
@@ -490,6 +522,9 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "employee.back_dashboard": "အလုပ်မျက်နှာပြင်သို့ ပြန်မည်",
     "employee.order_saved": "အမှာ သိမ်းပြီး",
     "employee.order_edit_error": "အမှာအသေးစိတ်ကို စစ်ပြီး ထပ်ကြိုးစားပါ",
+    "employee.active_session_in_progress": "နောက်ခံတွင် session တစ်ခု ရှိနေသည်",
+    "employee.resume_session": "session ဆက်လုပ်မည်",
+    "employee.new_order_anyway": "အမှာသစ် ဖွင့်မည်",
 
     "customer.welcome": "ကြိုဆိုပါသည်",
     "customer.price_list_title": "ဈေးနှုန်းစာရင်း",
@@ -529,6 +564,19 @@ export const FALLBACK_TRANSLATIONS: Record<Locale, TranslationMap> = {
     "print.print_receipt": "ငွေလက်ခံ ထုတ်မည်",
     "print.print_label": "အိတ်တံဆိပ် ထုတ်မည်",
     "print.print_all": "ငွေလက်ခံနှင့် အိတ်တံဆိပ် ထုတ်မည်",
+    "print.receipt": "ငွေလက်ခံ ထုတ်မည်",
+    "print.label": "တံဆိပ် ထုတ်မည်",
+    "print.error": "ပုံနှိပ်မှု မှားယွင်း",
+    "print.error_short": "မှားယွင်း",
+    "print.pay_at_store": "ဆိုင်သို့ လာရောက် ငွေပေးချေပါ",
+
+    "color.white": "အဖြူ",
+    "color.colorful": "အရောင်စုံ",
+    "color.dark": "အမှောင်",
+
+    "customer.select_color": "အဝတ်အရောင်",
+    "customer.search_country": "နိုင်ငံ ရှာမည်...",
+    "customer.select_country": "နိုင်ငံ ရွေးမည်",
 
     "admin.title": "အုပ်ချုပ်ရေး - Laundry Ops",
     "admin.orders_today": "ယနေ့အမှာများ",

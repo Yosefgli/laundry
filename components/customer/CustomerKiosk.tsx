@@ -260,20 +260,6 @@ export function CustomerKiosk({
   async function handleFinalizeOrder() {
     setSubmitting(true);
     try {
-      // Advance order to confirmed (already done per bag, just ensure)
-      await fetch(`/api/orders/${order.id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "confirmed" }),
-      }).catch(() => undefined);
-
-      // Complete session
-      await fetch(`/api/sessions/${sessionId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "complete" }),
-      });
-
       void publish(SessionEvent.CUSTOMER_ORDER_FINALIZED, {
         orderId: order.id,
         orderNumber: order.order_number,
@@ -422,7 +408,7 @@ export function CustomerKiosk({
 
             {/* Color — single select */}
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 space-y-3">
-              <h3 className="font-bold text-gray-900">{t["customer.select_color"] ?? "צבע הכביסה"}</h3>
+              <h3 className="font-bold text-gray-900">{t["customer.select_color"]}</h3>
               <div className="grid grid-cols-3 gap-3">
                 {(["white", "colorful", "dark"] as const).map((color) => {
                   const colorDot: Record<string, string> = {
