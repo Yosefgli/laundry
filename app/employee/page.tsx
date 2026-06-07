@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { EmployeeDashboard } from "@/components/employee/EmployeeDashboard";
 import { getI18n } from "@/lib/i18n/server";
+import { ACTIVE_ORDER_STATUSES } from "@/lib/orders/activeOrderStatus";
 import { getBackgroundSessionsForEmployee } from "@/lib/sessions/backgroundSessions";
 
 async function getEmployee() {
@@ -21,10 +22,34 @@ async function getRecentOrders() {
   const { data } = await supabase
     .from("orders")
     .select("id, order_number, status, payment_status, customer_name, total_amount, created_at")
-    .not("status", "in", '("void","delivered","cancelled")')
+    .in("status", [...ACTIVE_ORDER_STATUSES])
     .order("created_at", { ascending: false })
-    .limit(20);
-  return data ?? [];
+    .limit(50);
+
+  const orders = data ?? [];
+  const customerEntryOrderIds = orders
+    .filter((order) => order.status === "weighed")
+    .map((order) => order.id);
+
+  if (customerEntryOrderIds.length === 0) return orders.slice(0, 20);
+
+  const { data: sessions } = await supabase
+    .from("sessions")
+    .select("order_id, status, created_at")
+    .in("order_id", customerEntryOrderIds)
+    .order("created_at", { ascending: false });
+
+  const latestSessionStatusByOrder = new Map<string, string>();
+  for (const session of sessions ?? []) {
+    if (!session.order_id || latestSessionStatusByOrder.has(session.order_id)) continue;
+    latestSessionStatusByOrder.set(session.order_id, session.status);
+  }
+
+  return orders.filter((order) => {
+    if (order.status !== "weighed") return true;
+    const latestSessionStatus = latestSessionStatusByOrder.get(order.id);
+    return latestSessionStatus === undefined || latestSessionStatus === "active";
+  }).slice(0, 20);
 }
 
 export default async function EmployeePage() {

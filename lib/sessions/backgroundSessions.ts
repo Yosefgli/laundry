@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { ACTIVE_ORDER_STATUSES } from "@/lib/orders/activeOrderStatus";
 
 export type BackgroundSession = {
   id: string;
@@ -22,7 +23,7 @@ export async function getBackgroundSessionsForEmployee(employeeId: string): Prom
     .from("orders")
     .select("id, order_number, status, total_weight_kg, customer_name, total_amount, created_at")
     .eq("employee_id", employeeId)
-    .not("status", "in", '("void","delivered","cancelled")')
+    .in("status", [...ACTIVE_ORDER_STATUSES])
     .order("created_at", { ascending: false })
     .limit(20);
 

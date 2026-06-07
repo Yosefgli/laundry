@@ -8,6 +8,7 @@ import { OrderStatusBadge, PaymentStatusBadge } from "@/components/ui/StatusBadg
 import { Button } from "@/components/ui/Button";
 import { CombinedOrderPrint } from "@/components/printing/CombinedOrderPrint";
 import { formatCurrency, type Locale } from "@/lib/i18n";
+import { ACTIVE_ORDER_STATUSES, isActiveOrderStatus } from "@/lib/orders/activeOrderStatus";
 import type { Database } from "@/lib/db/database.types";
 import type { BackgroundSession } from "@/lib/sessions/backgroundSessions";
 import { createClient } from "@/lib/supabase/client";
@@ -46,9 +47,9 @@ interface EmployeeDashboardProps {
   initialBackgroundSessions: BackgroundSession[];
 }
 
-type OrderStatus = "draft" | "weighed" | "confirmed" | "washing" | "drying" | "ironing" | "ready" | "delivered" | "cancelled" | "void";
+type OrderStatus = Database["public"]["Enums"]["order_status"];
 
-const WORK_BOARD_STATUSES: OrderStatus[] = ["draft", "weighed", "confirmed", "washing", "drying", "ironing", "ready"];
+const WORK_BOARD_STATUSES: OrderStatus[] = [...ACTIVE_ORDER_STATUSES];
 
 const STATUS_COLUMN_COLORS: Record<OrderStatus, { bg: string; border: string; badge: string; count: string }> = {
   draft:     { bg: "bg-gray-50",    border: "border-gray-200",   badge: "bg-gray-100 text-gray-700",    count: "bg-gray-200 text-gray-700" },
@@ -105,7 +106,9 @@ export function EmployeeDashboard({
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const [scanResult, setScanResult] = useState<Order | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
-  const [recentOrders, setRecentOrders] = useState(initialOrders);
+  const [recentOrders, setRecentOrders] = useState(
+    initialOrders.filter((order) => isActiveOrderStatus(order.status))
+  );
   const [backgroundSessions, setBackgroundSessions] = useState<BackgroundSession[]>(initialBackgroundSessions);
 
   const deviceId = `employee-${employee.id}`;
@@ -140,7 +143,7 @@ export function EmployeeDashboard({
 
   function upsertRecentOrder(order: Order) {
     setRecentOrders((prev) => {
-      if (["delivered", "void", "cancelled"].includes(order.status)) {
+      if (!isActiveOrderStatus(order.status)) {
         return prev.filter((item) => item.id !== order.id);
       }
 
