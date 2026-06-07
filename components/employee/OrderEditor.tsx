@@ -37,6 +37,7 @@ interface OrderEditorProps {
   order: Order;
   translations: Record<string, string>;
   locale: Locale;
+  isAdmin?: boolean;
   onBack: () => void;
   onReload: () => Promise<Order | null>;
   onOrderUpdated: (order: Order) => void;
@@ -46,6 +47,7 @@ export function OrderEditor({
   order,
   translations: t,
   locale,
+  isAdmin = false,
   onBack,
   onReload,
   onOrderUpdated,
@@ -184,73 +186,7 @@ export function OrderEditor({
         </div>
       </div>
 
-      <div className="rounded-xl border bg-white p-4 space-y-4">
-        <h2 className="font-semibold">{t["employee.edit_order"]}</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Input
-            label={t["common.customer"]}
-            value={customerName}
-            onChange={(event) => setCustomerName(event.target.value)}
-          />
-          <Input
-            label={t["customer.phone"]}
-            type="tel"
-            value={customerPhone}
-            onChange={(event) => setCustomerPhone(event.target.value)}
-          />
-          <Input
-            label={t["employee.weight_kg"]}
-            type="number"
-            min="0.1"
-            max="999"
-            step="0.001"
-            value={totalWeightKg}
-            onChange={(event) => setTotalWeightKg(event.target.value)}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="customer-notes" className="text-sm font-medium text-gray-700">
-            {t["customer.notes"]}
-          </label>
-          <textarea
-            id="customer-notes"
-            className="min-h-20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand-500"
-            value={customerNotes}
-            onChange={(event) => setCustomerNotes(event.target.value)}
-          />
-        </div>
-        <Button onClick={saveDetails} loading={savingDetails} className="w-full sm:w-auto">
-          <Save className="me-2 h-4 w-4" aria-hidden="true" />
-          {t["common.save"]}
-        </Button>
-      </div>
-
-      <div className="rounded-xl border bg-white p-4 space-y-4">
-        <h2 className="font-semibold">{t["employee.edit_status"]}</h2>
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-          <select
-            className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand-500"
-            value={selectedStatus}
-            onChange={(event) => setSelectedStatus(event.target.value as OrderStatus)}
-          >
-            {ORDER_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {t[`status.${status}`] ?? status}
-              </option>
-            ))}
-          </select>
-          <Button onClick={saveStatus} loading={savingStatus} disabled={selectedStatus === order.status}>
-            {t["common.save"]}
-          </Button>
-        </div>
-        {order.payment_status === "pending" && Number(order.total_amount) > 0 && (
-          <Button variant="secondary" onClick={markPaid} loading={markingPaid}>
-            {t["employee.mark_paid"]}
-          </Button>
-        )}
-      </div>
-
-      {/* ── Bags section: one card per bag with individual label print ─── */}
+      {/* ── 1. Bags section (with per-bag label print) ─── */}
       {order.order_items && order.order_items.length > 0 && (
         <div className="rounded-xl border bg-white p-4 space-y-3">
           <h2 className="font-semibold">{t["employee.bags"] ?? "שקיות"}</h2>
@@ -276,7 +212,6 @@ export function OrderEditor({
                   key={item.id}
                   className="rounded-xl border-2 border-gray-100 p-4 space-y-3"
                 >
-                  {/* Bag header row */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
@@ -298,7 +233,6 @@ export function OrderEditor({
                     )}
                   </div>
 
-                  {/* Services + color tags */}
                   {(serviceLabels || colorLabel) && (
                     <div className="flex flex-wrap gap-1.5">
                       {services.map((s) => {
@@ -320,7 +254,6 @@ export function OrderEditor({
                     </div>
                   )}
 
-                  {/* Per-bag label print button */}
                   <div className="flex justify-end border-t border-gray-100 pt-2">
                     <ItemLabelPrint
                       orderId={order.id}
@@ -331,6 +264,76 @@ export function OrderEditor({
                 </div>
               );
             })}
+        </div>
+      )}
+
+      {/* ── 2. Status edit ─── */}
+      <div className="rounded-xl border bg-white p-4 space-y-4">
+        <h2 className="font-semibold">{t["employee.edit_status"]}</h2>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <select
+            className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand-500"
+            value={selectedStatus}
+            onChange={(event) => setSelectedStatus(event.target.value as OrderStatus)}
+          >
+            {ORDER_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {t[`status.${status}`] ?? status}
+              </option>
+            ))}
+          </select>
+          <Button onClick={saveStatus} loading={savingStatus} disabled={selectedStatus === order.status}>
+            {t["common.save"]}
+          </Button>
+        </div>
+        {order.payment_status === "pending" && Number(order.total_amount) > 0 && (
+          <Button variant="secondary" onClick={markPaid} loading={markingPaid}>
+            {t["employee.mark_paid"]}
+          </Button>
+        )}
+      </div>
+
+      {/* ── 3. Customer details (admin only) ─── */}
+      {isAdmin && (
+        <div className="rounded-xl border bg-white p-4 space-y-4">
+          <h2 className="font-semibold">{t["employee.edit_order"]}</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input
+              label={t["common.customer"]}
+              value={customerName}
+              onChange={(event) => setCustomerName(event.target.value)}
+            />
+            <Input
+              label={t["customer.phone"]}
+              type="tel"
+              value={customerPhone}
+              onChange={(event) => setCustomerPhone(event.target.value)}
+            />
+            <Input
+              label={t["employee.weight_kg"]}
+              type="number"
+              min="0.1"
+              max="999"
+              step="0.001"
+              value={totalWeightKg}
+              onChange={(event) => setTotalWeightKg(event.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="customer-notes" className="text-sm font-medium text-gray-700">
+              {t["customer.notes"]}
+            </label>
+            <textarea
+              id="customer-notes"
+              className="min-h-20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand-500"
+              value={customerNotes}
+              onChange={(event) => setCustomerNotes(event.target.value)}
+            />
+          </div>
+          <Button onClick={saveDetails} loading={savingDetails} className="w-full sm:w-auto">
+            <Save className="me-2 h-4 w-4" aria-hidden="true" />
+            {t["common.save"]}
+          </Button>
         </div>
       )}
 

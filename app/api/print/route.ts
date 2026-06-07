@@ -4,7 +4,7 @@ const bwipjs = require("bwip-js") as { toBuffer: (opts: Record<string, unknown>)
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireEmployee } from "@/lib/auth";
 import { getServerTranslations } from "@/lib/i18n/server";
-import { formatCurrency, formatWeight, localeToIntl } from "@/lib/i18n";
+import { formatCurrency, formatWeight, formatDate } from "@/lib/i18n";
 import { buildEan13 } from "@/lib/barcode";
 
 const EPOS_WIDTH = 42; // characters at default font on 80mm paper
@@ -56,17 +56,21 @@ export async function POST(request: NextRequest) {
 
     const t = await getServerTranslations("en");
     const locale = "en";
-    const shopName = process.env.NEXT_PUBLIC_SHOP_NAME ?? "";
-    const shopAddress = process.env.NEXT_PUBLIC_SHOP_ADDRESS ?? "";
-    const taxId = process.env.NEXT_PUBLIC_TAX_ID ?? "";
 
-    // Load EAN-13 prefix for payment barcode
-    const { data: ean13Setting } = await supabase
+    // Load all needed settings in one query
+    const { data: settingsRows } = await supabase
       .from("system_settings")
-      .select("value")
-      .eq("key", "ean13_prefix")
-      .maybeSingle();
-    const ean13Prefix = (ean13Setting?.value ?? "").trim();
+      .select("key, value")
+      .in("key", ["shop_name", "shop_address", "shop_phone", "tax_id", "ean13_prefix"]);
+
+    const settings = Object.fromEntries(
+      (settingsRows ?? []).map((s) => [s.key, s.value ?? ""])
+    );
+    const shopName    = settings["shop_name"]    ?? process.env.NEXT_PUBLIC_SHOP_NAME    ?? "";
+    const shopAddress = settings["shop_address"] ?? process.env.NEXT_PUBLIC_SHOP_ADDRESS ?? "";
+    const shopPhone   = settings["shop_phone"]   ?? "";
+    const taxId       = settings["tax_id"]       ?? process.env.NEXT_PUBLIC_TAX_ID       ?? "";
+    const ean13Prefix = (settings["ean13_prefix"] ?? "").trim();
 
     if (printerIp) {
       // ─── ePOS-Print path (EPSON network printers) ────────────────────────
@@ -74,7 +78,7 @@ export async function POST(request: NextRequest) {
       // Return the XML to the browser so the tablet — which is on the local
       // network — can POST directly to the printer via lib/print-client.ts.
       const eposUrl = `http://${printerIp}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
-      const xml = buildEposXml({ type, order, t, locale, shopName, shopAddress, taxId, ean13Prefix, itemId });
+      const xml = buildEposXml({ type, order, t, locale, shopName, shopAddress, shopPhone, taxId, ean13Prefix, itemId });
       return NextResponse.json({ clientPrint: true, printerUrl: eposUrl, xml });
     }
 
@@ -89,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     const receiptHtml =
       type === "receipt" || type === "combined"
-        ? buildReceiptHtml({ order, t, locale, shopName, shopAddress, taxId, qrDataUrl, ean13Prefix })
+        ? buildReceiptHtml({ order, t, locale, shopName, shopAddress, shopPhone, taxId, qrDataUrl, ean13Prefix })
         : "";
 
     const labelHtml =
@@ -164,6 +168,16 @@ function reverseRtl(s: string): string {
   return [...s].reverse().join("");
 }
 
+// Detect if string contains Hebrew characters (Unicode block U+0590–U+05FF / FB1D–FB4F).
+function hasHebrew(s: string): boolean {
+  return /[֐-׿יִ-ﭏ]/.test(s);
+}
+
+// Reverse only if the string contains Hebrew — used for per-field RTL on LTR-only printers.
+function fixRtlField(s: string): string {
+  return hasHebrew(s) ? reverseRtl(stripBidi(s)) : s;
+}
+
 function buildEposXml({
   type,
   order,
@@ -171,6 +185,7 @@ function buildEposXml({
   locale,
   shopName,
   shopAddress,
+  shopPhone,
   taxId,
   ean13Prefix,
   itemId,
@@ -181,6 +196,7 @@ function buildEposXml({
   locale: string;
   shopName: string;
   shopAddress: string;
+  shopPhone: string;
   taxId: string;
   ean13Prefix: string;
   itemId?: string;
@@ -188,7 +204,7 @@ function buildEposXml({
   const parts: string[] = [];
 
   if (type === "receipt" || type === "combined") {
-    parts.push(buildEposReceipt({ order, t, locale, shopName, shopAddress, taxId, ean13Prefix }));
+    parts.push(buildEposReceipt({ order, t, locale, shopName, shopAddress, shopPhone, taxId, ean13Prefix }));
   }
   if (type === "label" || type === "combined") {
     parts.push(buildEposLabel({ order, t, locale, itemId }));
@@ -203,6 +219,7 @@ function buildEposReceipt({
   locale,
   shopName,
   shopAddress,
+  shopPhone,
   taxId,
   ean13Prefix,
 }: {
@@ -211,6 +228,7 @@ function buildEposReceipt({
   locale: string;
   shopName: string;
   shopAddress: string;
+  shopPhone: string;
   taxId: string;
   ean13Prefix: string;
 }): string {
@@ -219,8 +237,8 @@ function buildEposReceipt({
   const SEP = "-".repeat(EPOS_WIDTH) + "\n";
   const items = (order.order_items as Array<Record<string, unknown>>) ?? [];
 
-  // Escape + reverse for RTL if needed
-  const te = (s: string) => esc(isRtl ? reverseRtl(stripBidi(s)) : s);
+  // Escape + reverse for RTL if needed; also per-field Hebrew detection for mixed-locale content
+  const te = (s: string) => esc(isRtl ? reverseRtl(stripBidi(s)) : fixRtlField(s));
   // Currency/weight without bidi marks
   const cur = (n: number) => stripBidi(formatCurrency(n, loc));
   const wt = (kg: number) => stripBidi(formatWeight(kg, loc, t["unit.kg"]));
@@ -258,6 +276,7 @@ function buildEposReceipt({
   return [
     `<text align="center" width="2" height="2">${te(shopName)}\n</text>`,
     shopAddress ? `<text align="center" width="1" height="1">${esc(shopAddress)}\n</text>` : "",
+    shopPhone   ? `<text align="center" width="1" height="1">${esc(shopPhone)}\n</text>` : "",
     taxId ? `<text align="center">${te(`${t["print.receipt_title"]} | ${taxId}`)}\n</text>` : "",
     `<text align="left">${SEP}</text>`,
     `<text>${esc(pr(t["print.order_number"] ?? "Order", String(order.order_number ?? "")))}\n</text>`,
@@ -304,13 +323,11 @@ function buildEposLabel({
   locale: string;
   itemId?: string;
 }): string {
-  const loc = locale as "en" | "he" | "my";
-  const isRtl = loc === "he";
-  const te = (s: string) => esc(isRtl ? reverseRtl(stripBidi(s)) : s);
   const allItems = (order.order_items as Array<Record<string, unknown>>) ?? [];
 
   // If itemId provided, print only that bag; otherwise print all
   const items = itemId ? allItems.filter((i) => i.id === itemId) : allItems;
+  void locale;
 
   const colorLabels: Record<string, string> = {
     white: t["color.white"] ?? "White",
@@ -318,7 +335,7 @@ function buildEposLabel({
     dark: t["color.dark"] ?? "Dark",
   };
 
-  const date = new Date(order.created_at as string).toLocaleDateString(localeToIntl(loc));
+  const date = formatDate(order.created_at as string);
 
   return items.map((item) => {
     const bagNum = (item.bag_number as number | undefined) ?? 1;
@@ -330,14 +347,18 @@ function buildEposLabel({
       .filter(Boolean) as string[];
     const servicesLabel = serviceCodes.map((s) => t[`service.${s}`] ?? s).join(" · ");
     const bagLabel = `${t["customer.bag"] ?? "Bag"} ${bagNum}${colorLabel ? ` · ${colorLabel}` : ""}`;
+    // Customer name may be in Hebrew — reverse for LTR-only thermal printer
+    const customerNamePrint = order.customer_name
+      ? esc(fixRtlField(String(order.customer_name)))
+      : null;
 
     return [
       `<text align="center" width="2" height="2">${esc(String(order.order_number ?? ""))}\n</text>`,
       `<barcode type="code128" align="center" width="3" height="100">{B}${String(order.order_number ?? "")}</barcode>`,
       `<text align="center" width="1" height="1">${esc(String(order.order_number ?? ""))}\n</text>`,
-      `<text align="center">${te(bagLabel)}\n</text>`,
-      order.customer_name ? `<text align="center">${te(String(order.customer_name))}\n</text>` : "",
-      servicesLabel ? `<text align="center">${te(servicesLabel)}\n</text>` : "",
+      `<text align="center">${esc(bagLabel)}\n</text>`,
+      customerNamePrint ? `<text align="center">${customerNamePrint}\n</text>` : "",
+      servicesLabel ? `<text align="center">${esc(servicesLabel)}\n</text>` : "",
       `<text align="center">${esc(date)}\n</text>`,
       `<feed line="3"/>`,
       `<cut type="feed"/>`,
@@ -353,6 +374,7 @@ function buildReceiptHtml({
   locale,
   shopName,
   shopAddress,
+  shopPhone,
   taxId,
   qrDataUrl,
   ean13Prefix,
@@ -362,6 +384,7 @@ function buildReceiptHtml({
   locale: string;
   shopName: string;
   shopAddress: string;
+  shopPhone: string;
   taxId: string;
   qrDataUrl: string;
   ean13Prefix: string;
@@ -401,6 +424,7 @@ function buildReceiptHtml({
   return `<div class="page">
   <div class="center bold" style="font-size:12pt">${shopName}</div>
   ${shopAddress ? `<div class="center xs">${shopAddress}</div>` : ""}
+  ${shopPhone   ? `<div class="center xs">${shopPhone}</div>`   : ""}
   ${taxId ? `<div class="center xs">${t["print.receipt_title"]} | ${taxId}</div>` : ""}
   <hr/>
   <div class="row"><span>${t["print.order_number"]}</span><span class="bold">${order.order_number}</span></div>
@@ -432,10 +456,10 @@ function buildLabelHtml({
   qrDataUrl: string;
   itemId?: string;
 }): string {
-  const loc = locale as "en" | "he" | "my";
+  void locale;
   const allItems = (order.order_items as Array<Record<string, unknown>>) ?? [];
   const items = itemId ? allItems.filter((i) => i.id === itemId) : allItems;
-  const date = new Date(order.created_at as string).toLocaleDateString(localeToIntl(loc));
+  const date = formatDate(order.created_at as string);
   const colorLabels: Record<string, string> = {
     white: t["color.white"] ?? "White",
     colorful: t["color.colorful"] ?? "Colorful",
@@ -452,12 +476,16 @@ function buildLabelHtml({
       .filter(Boolean) as string[];
     const servicesLabel = serviceCodes.map((s) => t[`service.${s}`] ?? s).join(" · ");
     const bagLabel = `${t["customer.bag"] ?? "Bag"} ${bagNum}${colorLabel ? ` · ${colorLabel}` : ""}`;
+    // Customer name: Hebrew characters need Unicode bidi direction for HTML (browser handles it)
+    const customerNameHtml = order.customer_name
+      ? `<div style="font-size:10pt;margin-top:2px;unicode-bidi:plaintext">${String(order.customer_name)}</div>`
+      : "";
 
     return `<div class="page center" style="font-size:12pt;font-weight:bold">
   <div style="font-size:20pt;font-weight:900;margin-bottom:6px">${order.order_number}</div>
   <div><img class="qr" style="width:140px;height:140px" src="${qrDataUrl}" alt="QR"/></div>
   <div style="font-size:10pt;font-weight:bold;margin-top:4px">${bagLabel}</div>
-  ${order.customer_name ? `<div style="font-size:10pt;margin-top:2px">${order.customer_name}</div>` : ""}
+  ${customerNameHtml}
   <div class="xs" style="margin-top:2px">${servicesLabel}</div>
   <div class="xs" style="margin-top:2px">${date}</div>
 </div>`;

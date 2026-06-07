@@ -61,6 +61,7 @@ interface CustomerKioskProps {
   serviceTypes: ServiceType[];
   translations: Record<string, string>;
   locale: Locale;
+  shopName?: string;
   onReturnToPriceList?: () => void;
 }
 
@@ -75,6 +76,7 @@ export function CustomerKiosk({
   serviceTypes,
   translations: t,
   locale,
+  shopName: shopNameProp,
   onReturnToPriceList,
 }: CustomerKioskProps) {
   const [step, setStep] = useState<KioskWorkflowStep>(
@@ -277,7 +279,7 @@ export function CustomerKiosk({
   const pendingBag = bags.find((b) => b.id === pendingItemId);
   const completedBags = bags.filter((b) => b.serviceTypeIds && b.serviceTypeIds.length > 0);
   const activeServices = serviceTypes.filter((s) => s.is_active);
-  const shopName = "המכבסה By Chabad";
+  const shopName = shopNameProp ?? "Laundry";
 
   return (
     <div className="min-h-screen bg-[#f8fefe]" dir={dir}>

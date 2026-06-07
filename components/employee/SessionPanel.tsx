@@ -26,6 +26,7 @@ interface SessionPanelProps {
   onMarkPaid: () => void;
   onCancelSession: () => void;
   onOrderRefresh: () => void;
+  onBack: () => void;
 }
 
 const NEXT_STATUS: Record<string, string> = {
@@ -46,6 +47,7 @@ export function SessionPanel({
   onMarkPaid,
   onCancelSession,
   onOrderRefresh,
+  onBack,
 }: SessionPanelProps) {
   const [advancing, setAdvancing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -120,6 +122,7 @@ export function SessionPanel({
       const p = envelope.payload as OrderFinalizedPayload;
       void triggerReceiptPrint();
       void finalizeOrderInDb();
+      setWorkflowStep("order_confirmed");
       void p;
     }
     if (envelope.type === SessionEvent.ORDER_CONFIRMED) {
@@ -308,15 +311,25 @@ export function SessionPanel({
         </div>
       )}
 
-      {/* Cancel session */}
-      <Button
-        onClick={cancelSession}
-        loading={cancelling}
-        variant="danger"
-        size="md"
-      >
-        {t["employee.cancel_session"]}
-      </Button>
+      {/* Cancel session OR Back to dashboard — never both */}
+      {workflowStep === "order_confirmed" ? (
+        <Button
+          onClick={onBack}
+          variant="secondary"
+          size="md"
+        >
+          {t["employee.back_dashboard"]}
+        </Button>
+      ) : (
+        <Button
+          onClick={cancelSession}
+          loading={cancelling}
+          variant="danger"
+          size="md"
+        >
+          {t["employee.cancel_session"]}
+        </Button>
+      )}
     </div>
   );
 }
