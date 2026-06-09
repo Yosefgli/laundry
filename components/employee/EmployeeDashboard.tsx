@@ -110,6 +110,7 @@ export function EmployeeDashboard({
     initialOrders.filter((order) => isActiveOrderStatus(order.status))
   );
   const [backgroundSessions, setBackgroundSessions] = useState<BackgroundSession[]>(initialBackgroundSessions);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const deviceId = `employee-${employee.id}`;
 
@@ -157,7 +158,7 @@ export function EmployeeDashboard({
         created_at: order.created_at,
       };
       const withoutCurrent = prev.filter((item) => item.id !== order.id);
-      return [summary, ...withoutCurrent].slice(0, 20);
+      return [summary, ...withoutCurrent];
     });
   }
 
@@ -165,6 +166,19 @@ export function EmployeeDashboard({
     const res = await fetch("/api/sessions/active");
     const json = await res.json();
     setBackgroundSessions(json.data ?? []);
+  }
+
+  async function cancelAllAndNewOrder() {
+    for (const session of backgroundSessions) {
+      await fetch(`/api/sessions/${session.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "new_order_override" }),
+      });
+    }
+    setBackgroundSessions([]);
+    setShowCancelConfirm(false);
+    setView("new_order");
   }
 
   async function resumeBackgroundSession(session: BackgroundSession) {
@@ -272,13 +286,6 @@ export function EmployeeDashboard({
               {t["employee.work_board"]}
             </Button>
             <Button
-              variant={view === "new_order" ? "primary" : "secondary"}
-              size="sm"
-              onClick={handleNewOrderClick}
-            >
-              {t["employee.new_order"]}
-            </Button>
-            <Button
               variant={view === "scan" ? "primary" : "secondary"}
               size="sm"
               onClick={() => setView("scan")}
@@ -291,7 +298,12 @@ export function EmployeeDashboard({
         {/* Dashboard */}
         {view === "dashboard" && (
           <div className="space-y-3">
-              <Button size="xl" className="w-full" onClick={handleNewOrderClick}>
+              <Button
+                size="xl"
+                className="w-full"
+                onClick={handleNewOrderClick}
+                disabled={backgroundSessions.length > 0}
+              >
                 + {t["employee.new_order"]}
               </Button>
 
@@ -315,7 +327,7 @@ export function EmployeeDashboard({
                         <Button size="sm" className="flex-1" onClick={() => resumeBackgroundSession(session)}>
                           {t["employee.resume_session"]}
                         </Button>
-                        <Button variant="secondary" size="sm" onClick={() => setView("new_order")}>
+                        <Button variant="secondary" size="sm" onClick={() => setShowCancelConfirm(true)}>
                           {t["employee.new_order_anyway"]}
                         </Button>
                       </div>
@@ -502,28 +514,37 @@ export function EmployeeDashboard({
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="font-bold">{scanResult.order_number}</span>
-                  <OrderStatusBadge
-                    status={scanResult.status as Parameters<typeof OrderStatusBadge>[0]["status"]}
-                    label={t[`status.${scanResult.status}`] ?? scanResult.status}
-                  />
+                  <div className="flex items-center gap-2">
+                    {!isActiveOrderStatus(scanResult.status) && (
+                      <span className="text-xs font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        {t["employee.view_only"]}
+                      </span>
+                    )}
+                    <OrderStatusBadge
+                      status={scanResult.status as Parameters<typeof OrderStatusBadge>[0]["status"]}
+                      label={t[`status.${scanResult.status}`] ?? scanResult.status}
+                    />
+                  </div>
                 </div>
                 <div className="text-sm">
                   {scanResult.customer_name ?? t["common.not_available"]} · {scanResult.customer_phone ?? t["common.not_available"]}
                 </div>
                 <div className="text-sm font-semibold">{formatCurrency(Number(scanResult.total_amount), locale)}</div>
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  className="w-full"
-                  onClick={() => {
-                    setActiveOrderId(scanResult.id);
-                    setActiveSessionId(null);
-                    setActiveOrder(scanResult);
-                    setView("order_detail");
-                  }}
-                >
-                  {t["employee.open_order"]}
-                </Button>
+                {isActiveOrderStatus(scanResult.status) && (
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    className="w-full"
+                    onClick={() => {
+                      setActiveOrderId(scanResult.id);
+                      setActiveSessionId(null);
+                      setActiveOrder(scanResult);
+                      setView("order_detail");
+                    }}
+                  >
+                    {t["employee.open_order"]}
+                  </Button>
+                )}
                 {scanResult.status === "ready" && scanResult.payment_status === "paid" && (
                   <Button
                     size="lg"
@@ -545,6 +566,24 @@ export function EmployeeDashboard({
           </div>
         )}
       </main>
+
+      {/* Cancel-session confirmation dialog */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4">
+            <h2 className="font-bold text-gray-900 text-lg">{t["employee.cancel_confirm_title"]}</h2>
+            <p className="text-sm text-gray-600">{t["employee.cancel_confirm_desc"]}</p>
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" className="flex-1" onClick={cancelAllAndNewOrder}>
+                {t["common.confirm"]}
+              </Button>
+              <Button variant="secondary" size="sm" className="flex-1" onClick={() => setShowCancelConfirm(false)}>
+                {t["common.cancel"]}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -325,7 +325,7 @@ export function CustomerKiosk({
         {step === "bag_service_selection" && !pendingBag && (
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-10 text-center space-y-4">
             <div className="mx-auto w-10 h-10 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin" />
-            <p className="text-gray-400 text-sm">{t["customer.waiting_for_weight"] ?? "ממתין לנתוני שקית…"}</p>
+            <p className="text-gray-400 text-sm">{t["customer.waiting_for_weight"]}</p>
           </div>
         )}
 
@@ -537,8 +537,8 @@ export function CustomerKiosk({
                 <path d="M12 13v4M10 15h4" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round"/>
               </svg>
             </div>
-            <h2 className="text-xl font-bold text-gray-900">{t["customer.waiting_for_weight"] ?? "ממתין לשקילה…"}</h2>
-            <p className="text-gray-500 text-sm">{t["customer.waiting_for_weight_desc"] ?? "העבר את השקית הבאה לעובדת"}</p>
+            <h2 className="text-xl font-bold text-gray-900">{t["customer.waiting_for_weight"]}</h2>
+            <p className="text-gray-500 text-sm">{t["customer.waiting_for_weight_desc"]}</p>
           </div>
         )}
 

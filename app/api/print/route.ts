@@ -298,8 +298,10 @@ function buildEposReceipt({
         const ean13 = buildEan13(ean13Prefix, Math.round(Number(order.total_amount)));
         const payMsg = t["print.pay_at_store"] ?? "Please go to the store to pay";
         return [
+          `<feed line="3"/>`,
           `<text>${SEP}</text>`,
           `<text align="center">${te(isRtl ? reverseRtl(stripBidi(payMsg)) : payMsg)}\n</text>`,
+          `<feed line="1"/>`,
           `<barcode type="ean13" align="center" width="3" height="80">${ean13}</barcode>`,
           `<text align="center">${esc(ean13)}\n</text>`,
         ];

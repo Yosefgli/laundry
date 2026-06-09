@@ -89,6 +89,42 @@ function PendingCustomerHandoff({
   const dir = isRTL(locale) ? "rtl" : "ltr";
   const [submitted, setSubmitted] = useState(false);
   const [readyError, setReadyError] = useState<string | null>(null);
+  const [sessionReady, setSessionReady] = useState(handoff.isReady === true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (handoff.isReady === true) {
+      setSessionReady(true);
+      setReadyError(null);
+      return;
+    }
+
+    setSessionReady(false);
+    setReadyError(null);
+
+    async function prepareSession() {
+      while (!cancelled) {
+        const ready = await onSessionReady(handoff.sessionId);
+        if (cancelled) return;
+
+        if (ready) {
+          setSessionReady(true);
+          setReadyError(null);
+          return;
+        }
+
+        setReadyError(t["common.reconnecting"] ?? t["common.error"]);
+        await wait(SESSION_READY_RETRY_MS);
+      }
+    }
+
+    void prepareSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [handoff.isReady, handoff.sessionId, onSessionReady, t]);
 
   async function publishCustomerInfoEvents(info: CustomerInfoInput) {
     const supabase = createClient();
@@ -119,16 +155,16 @@ function PendingCustomerHandoff({
   }
 
   async function handleInfoSubmitted(info: CustomerInfoInput) {
-    setSubmitted(true);
     setReadyError(null);
 
-    const ready = await onSessionReady(handoff.sessionId);
+    const ready = sessionReady || await onSessionReady(handoff.sessionId);
     if (!ready) {
       setReadyError(t["common.reconnecting"] ?? t["common.error"]);
-      setSubmitted(false);
       return;
     }
 
+    setSessionReady(true);
+    setSubmitted(true);
     await publishCustomerInfoEvents(info);
     onNavigate(handoff.sessionId, handoff.customerDeviceId);
   }
@@ -179,6 +215,7 @@ function PendingCustomerHandoff({
               translations={t}
               locale={locale}
               onSubmitted={handleInfoSubmitted}
+              disabled={!sessionReady}
             />
           </div>
         )}
@@ -199,6 +236,7 @@ export function CustomerPriceDisplay({
   // sharing the same customerDeviceId. Last-joined wins via presence timestamps.
   const isPrimaryRef = useRef<boolean>(true);
   const navigatedRef = useRef<boolean>(false);
+  const activeSessionCheckInFlightRef = useRef(false);
   const [pendingHandoff, setPendingHandoff] = useState<CustomerHandoff | null>(null);
   const pendingHandoffRef = useRef<CustomerHandoff | null>(null);
 
@@ -245,13 +283,20 @@ export function CustomerPriceDisplay({
         ...session,
         customerDeviceId: session.customerDeviceId ?? customerDeviceId,
       };
-      setPendingHandoff((current) =>
-        current?.sessionId === handoff.sessionId ? { ...current, ...handoff } : handoff
-      );
+      setPendingHandoff((current) => {
+        if (current?.sessionId !== handoff.sessionId) return handoff;
+        return {
+          ...current,
+          ...handoff,
+          isReady: current.isReady === true ? true : handoff.isReady,
+        };
+      });
     }
 
     async function checkForSession() {
       if (!isPrimaryRef.current) return;
+      if (activeSessionCheckInFlightRef.current) return;
+      activeSessionCheckInFlightRef.current = true;
       try {
         const res = await fetch("/api/sessions/active?target=customer", { cache: "no-store" });
         if (res.status === 401) {
@@ -280,6 +325,8 @@ export function CustomerPriceDisplay({
         }
       } catch {
         // Keep the price list visible if the fallback check fails.
+      } finally {
+        activeSessionCheckInFlightRef.current = false;
       }
     }
 
