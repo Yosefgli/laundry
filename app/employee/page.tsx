@@ -23,15 +23,14 @@ async function getRecentOrders() {
     .from("orders")
     .select("id, order_number, status, payment_status, customer_name, total_amount, created_at")
     .in("status", [...ACTIVE_ORDER_STATUSES])
-    .order("created_at", { ascending: false })
-    .limit(50);
+    .order("created_at", { ascending: false });
 
   const orders = data ?? [];
   const customerEntryOrderIds = orders
     .filter((order) => order.status === "weighed")
     .map((order) => order.id);
 
-  if (customerEntryOrderIds.length === 0) return orders.slice(0, 20);
+  if (customerEntryOrderIds.length === 0) return orders;
 
   const { data: sessions } = await supabase
     .from("sessions")
@@ -49,7 +48,7 @@ async function getRecentOrders() {
     if (order.status !== "weighed") return true;
     const latestSessionStatus = latestSessionStatusByOrder.get(order.id);
     return latestSessionStatus === undefined || latestSessionStatus === "active";
-  }).slice(0, 20);
+  });
 }
 
 export default async function EmployeePage() {
