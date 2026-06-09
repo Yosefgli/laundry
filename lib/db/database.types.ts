@@ -295,7 +295,7 @@ export type Database = {
           delivered_by?: string | null
           employee_id: string
           id?: string
-          order_number: string
+          order_number?: string
           paid_at?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           status?: Database["public"]["Enums"]["order_status"]
