@@ -132,6 +132,24 @@ export function CustomerKiosk({
         }
         setStep("cancelled");
       }
+      // Degraded-mode poll — check DB directly in case the broadcast was missed
+      if (
+        envelope.type === SessionEvent.ORDER_STATUS_CHANGED &&
+        (envelope.payload as Record<string, unknown>)?._poll === true
+      ) {
+        void fetch(`/api/sessions/${sessionId}/status`)
+          .then((r) => r.json())
+          .then((json: { data?: { status?: string } }) => {
+            if (json.data?.status === "cancelled") {
+              if (employeeGraceTimerRef.current) {
+                clearTimeout(employeeGraceTimerRef.current);
+                employeeGraceTimerRef.current = null;
+              }
+              setStep((s) => (TERMINAL_STEPS.includes(s) ? s : "cancelled"));
+            }
+          })
+          .catch(() => undefined);
+      }
       if (envelope.type === SessionEvent.EMPLOYEE_BAG_WEIGHT_ENTERED) {
         const p = envelope.payload as BagWeightEnteredPayload;
         setPendingItemId(p.itemId);

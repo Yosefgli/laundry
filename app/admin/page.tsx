@@ -82,6 +82,7 @@ export default async function AdminPage() {
           <AdminNavCard href="/admin/settings" title={t["admin.settings"]} desc={t["admin.settings_desc"]} />
           <AdminNavCard href="/admin/translations" title={t["admin.translations"]} desc={t["admin.translations_desc"]} />
           <AdminNavCard href="/admin/audit" title={t["admin.audit"]} desc={t["admin.audit_desc"]} />
+          <AdminNavCard href="/admin/payments" title="תשלומים" desc="צפה בתשלומי Webhook, ערוך ועבד מחדש" />
         </div>
       </main>
     </div>

@@ -52,3 +52,4 @@ fix: /api/print — catch network errors from ePOS fetch separately; return Hebr
 - Fixed customer waiting-for-weight screen always showing Hebrew: added  and  to all three locale fallbacks in lib/i18n/index.ts; removed hardcoded Hebrew inline fallbacks from CustomerKiosk.tsx.
 - Fixed customer waiting-for-weight screen always showing Hebrew: added customer.waiting_for_weight and customer.waiting_for_weight_desc to all three locale fallbacks in lib/i18n/index.ts; removed hardcoded Hebrew inline fallbacks from CustomerKiosk.tsx.
 2026-06-09 — Added POS webhook receiver: pos_webhooks table, POST /api/webhooks/pos endpoint — extracts order number from general_note, verifies amount, marks order as paid.
+- Added /admin/payments: webhook payment log with inline edit (order number + amount) and re-process button; fixed SESSION_CANCELLED broadcast race (await publish before onCancelSession unmount); added degraded-mode DB fallback in CustomerKiosk for cancellation detection.
