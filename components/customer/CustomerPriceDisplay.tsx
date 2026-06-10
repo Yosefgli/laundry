@@ -183,7 +183,8 @@ function PendingCustomerHandoff({
             </svg>
           </div>
           <div>
-            <h1 className="font-black text-lg leading-none">Laundry <span className="font-light">by Chabad</span></h1>
+            <h1 className="font-black text-sm leading-none">Laundry POS</h1>
+            <p className="text-white/50 font-light text-xs leading-none">by Chabad</p>
             <p className="text-white/70 text-xs mt-0.5">{t["customer.welcome"]}</p>
           </div>
         </div>
@@ -413,8 +414,8 @@ export function CustomerPriceDisplay({
               </svg>
             </div>
             <div>
-              <p className="text-sm font-medium text-white/70">Laundry <span className="font-light">by Chabad</span></p>
               <h1 className="text-3xl font-black">{t["customer.price_list_title"]}</h1>
+              <p className="text-xs font-light text-white/50 mt-0.5">Laundry by Chabad</p>
             </div>
           </div>
           <div className="rounded-2xl bg-white/15 px-4 py-2.5 text-sm font-semibold backdrop-blur-sm border border-white/20">
@@ -423,60 +424,64 @@ export function CustomerPriceDisplay({
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl p-6">
+      <main className="mx-auto max-w-4xl p-6 space-y-6">
+        {/* Instruction banner */}
+        <div className="flex items-start gap-3 rounded-2xl bg-brand-50 border border-brand-200 px-5 py-4">
+          <div className="mt-0.5 w-6 h-6 rounded-full bg-brand-500 flex items-center justify-center shrink-0">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+              <path d="M12 8v4m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <p className="text-sm font-semibold text-brand-800 leading-snug">
+            {t["customer.approach_laundress"] ?? "לתחילת התהליך אנא פנה לכובסת לשקילה"}
+          </p>
+        </div>
+
         {activeServices.length === 0 ? (
           <div className="rounded-2xl border bg-white p-10 text-center text-gray-400 shadow-sm">
             {t["customer.no_prices"]}
           </div>
         ) : (
-          <section className="grid gap-4 sm:grid-cols-2">
+          <section className="grid gap-3 sm:grid-cols-2">
             {activeServices.map((service) => {
               const rule = activeRule(service);
               const flatFee = Number(rule?.flat_fee ?? 0);
               const minimumCharge = Number(rule?.minimum_charge ?? 0);
 
               return (
-                <article key={service.id} className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm hover:shadow-md hover:border-brand-200 transition-all duration-150">
-                  <h2 className="text-lg font-bold text-gray-900">
-                    {t[`service.${service.code}`] ?? service.code}
-                  </h2>
+                <div key={service.id} className="rounded-2xl border border-gray-100 bg-white px-5 py-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 rounded-full bg-brand-400 shrink-0" />
+                    <h2 className="text-base font-bold text-gray-800">
+                      {t[`service.${service.code}`] ?? service.code}
+                    </h2>
+                  </div>
 
                   {rule ? (
-                    <>
-                      <div className="mt-4 flex items-baseline justify-between gap-3">
-                        <span className="text-sm font-medium text-gray-500">
-                          {t["customer.price_per_kg"]}
-                        </span>
-                        <span className="whitespace-nowrap text-2xl font-black text-brand-600">
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex items-baseline justify-between gap-3 border-b border-gray-50 pb-2">
+                        <span className="text-gray-500">{t["customer.price_per_kg"]}</span>
+                        <span className="font-black text-xl text-brand-600 whitespace-nowrap">
                           {formatCurrency(Number(rule.price_per_kg), locale)}
                         </span>
                       </div>
-
-                      {(flatFee > 0 || minimumCharge > 0) && (
-                        <div className="mt-3 space-y-1 text-sm text-gray-500 border-t border-gray-50 pt-3">
-                          {flatFee > 0 && (
-                            <div className="flex justify-between gap-3">
-                              <span>{t["customer.flat_fee"]}</span>
-                              <span className="font-semibold text-gray-700">
-                                {formatCurrency(flatFee, locale)}
-                              </span>
-                            </div>
-                          )}
-                          {minimumCharge > 0 && (
-                            <div className="flex justify-between gap-3">
-                              <span>{t["customer.minimum_charge"]}</span>
-                              <span className="font-semibold text-gray-700">
-                                {formatCurrency(minimumCharge, locale)}
-                              </span>
-                            </div>
-                          )}
+                      {flatFee > 0 && (
+                        <div className="flex justify-between gap-3 text-gray-500">
+                          <span>{t["customer.flat_fee"]}</span>
+                          <span className="font-semibold text-gray-700">{formatCurrency(flatFee, locale)}</span>
                         </div>
                       )}
-                    </>
+                      {minimumCharge > 0 && (
+                        <div className="flex justify-between gap-3 text-gray-500">
+                          <span>{t["customer.minimum_charge"]}</span>
+                          <span className="font-semibold text-gray-700">{formatCurrency(minimumCharge, locale)}</span>
+                        </div>
+                      )}
+                    </div>
                   ) : (
-                    <p className="mt-4 text-sm text-gray-400">{t["common.not_available"]}</p>
+                    <p className="text-sm text-gray-400">{t["common.not_available"]}</p>
                   )}
-                </article>
+                </div>
               );
             })}
           </section>

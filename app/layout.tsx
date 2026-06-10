@@ -5,8 +5,18 @@ import { getI18n } from "@/lib/i18n/server";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Laundry Ops",
-  description: "Laundry Operations Management System",
+  title: "Laundry POS",
+  description: "Laundry Point of Sale Management System",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Laundry POS",
+  },
+  icons: {
+    icon: "/icons/icon.svg",
+    apple: "/icons/icon.svg",
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

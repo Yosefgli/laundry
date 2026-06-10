@@ -80,7 +80,7 @@ export function SessionPanel({
     await fetch(`/api/orders/${order.id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "confirmed" }),
+      body: JSON.stringify({ status: "confirmed", terms_accepted: true }),
     });
     await fetch(`/api/sessions/${sessionId}`, {
       method: "PATCH",
@@ -180,7 +180,9 @@ export function SessionPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      publish(SessionEvent.SESSION_CANCELLED, {});
+      // Must await publish before calling onCancelSession — onCancelSession unmounts this
+      // component, which tears down the channel, aborting any in-flight publish.
+      await publish(SessionEvent.SESSION_CANCELLED, {});
       onCancelSession();
     } finally {
       setCancelling(false);

@@ -13,6 +13,7 @@ export const UpdateOrderStatusSchema = z.object({
   ]),
   deliveredBy: z.string().uuid().optional(),
   force: z.boolean().optional(),
+  terms_accepted: z.boolean().optional(),
 });
 
 export const UpdateOrderWeightSchema = z.object({

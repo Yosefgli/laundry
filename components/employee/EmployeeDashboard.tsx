@@ -253,7 +253,8 @@ export function EmployeeDashboard({
             </svg>
           </div>
           <div>
-            <h1 className="font-black text-base leading-none">Laundry <span className="font-light">by Chabad</span></h1>
+            <h1 className="font-black text-sm leading-none">Laundry POS</h1>
+            <p className="text-xs text-white/50 font-light leading-none">by Chabad</p>
             <p className="text-xs text-white/70 mt-0.5">{employee.full_name}</p>
           </div>
         </div>
