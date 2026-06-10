@@ -282,6 +282,7 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"]
           subtotal: number
           tax_amount: number
+          terms_accepted: boolean
           total_amount: number
           total_weight_kg: number
           updated_at: string
@@ -301,6 +302,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
           tax_amount?: number
+          terms_accepted?: boolean
           total_amount?: number
           total_weight_kg?: number
           updated_at?: string
@@ -320,6 +322,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
           tax_amount?: number
+          terms_accepted?: boolean
           total_amount?: number
           total_weight_kg?: number
           updated_at?: string

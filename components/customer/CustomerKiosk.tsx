@@ -103,6 +103,7 @@ export function CustomerKiosk({
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [selectedColor, setSelectedColor] = useState<BagColorType | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const router = useRouter();
   const dir = isRTL(locale) ? "rtl" : "ltr";
 
@@ -524,6 +525,24 @@ export function CustomerKiosk({
               <span className="text-2xl font-black text-brand-700">{formatCurrency(orderTotal, locale)}</span>
             </div>
 
+            <label className="flex items-start gap-3 cursor-pointer select-none bg-white rounded-2xl border-2 border-gray-100 p-4">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-5 w-5 rounded border-gray-300 text-brand-600 accent-brand-600 shrink-0 cursor-pointer"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+              />
+              <span className="text-sm text-gray-700 leading-snug">
+                {t["customer.terms_accept"] ?? "קראתי ואני מסכים לתקנון"}
+              </span>
+            </label>
+
+            {!termsAccepted && (
+              <p className="text-xs text-amber-600 text-center">
+                {t["customer.terms_required"] ?? "יש לאשר את התקנון כדי להמשיך"}
+              </p>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <Button
                 size="xl"
@@ -537,6 +556,7 @@ export function CustomerKiosk({
                 size="xl"
                 className="w-full"
                 loading={submitting}
+                disabled={!termsAccepted}
                 onClick={handleFinalizeOrder}
               >
                 {t["customer.confirm_final"] ?? "אישור סופי"}
@@ -581,22 +601,26 @@ export function CustomerKiosk({
       {step === "order_confirmed" && (
         <div className="fixed inset-0 z-50 bg-gradient-to-b from-brand-50 to-white flex flex-col items-center justify-center overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
-            {Array.from({ length: 24 }).map((_, i) => {
-              const size = 18 + (i % 6) * 14;
-              const left = (i * 31 + 3) % 97;
-              const delay = (i * 0.35) % 4;
-              const duration = 3 + (i % 5);
+            {Array.from({ length: 28 }).map((_, i) => {
+              const size = 22 + (i % 7) * 16;
+              const left = (i * 29 + 5) % 95;
+              const delay = (i * 0.28) % 5;
+              const duration = 4 + (i % 6);
+              const hue = (180 + i * 19) % 360;
+              const hue2 = (hue + 60) % 360;
               return (
                 <div
                   key={i}
-                  className="absolute rounded-full opacity-35"
+                  className="absolute rounded-full"
                   style={{
                     width: size,
                     height: size,
                     left: `${left}%`,
-                    bottom: "-15%",
-                    background: `hsl(${170 + i * 13}, 65%, 62%)`,
-                    animationName: "bubbleFloat",
+                    bottom: "-20%",
+                    background: `radial-gradient(circle at 35% 35%, hsla(${hue2},100%,95%,0.6) 0%, hsla(${hue},80%,75%,0.15) 40%, transparent 70%), radial-gradient(circle at 70% 65%, hsla(${(hue+120)%360},90%,80%,0.2) 0%, transparent 50%)`,
+                    border: `1.5px solid hsla(${hue},70%,80%,0.55)`,
+                    boxShadow: `inset 0 0 ${size * 0.3}px hsla(${hue2},100%,90%,0.3), 0 0 ${size * 0.15}px hsla(${hue},60%,70%,0.2)`,
+                    animationName: "soapBubbleFloat",
                     animationDuration: `${duration}s`,
                     animationDelay: `${delay}s`,
                     animationTimingFunction: "ease-in-out",
@@ -632,10 +656,12 @@ export function CustomerKiosk({
       )}
 
       <style>{`
-        @keyframes bubbleFloat {
-          0%   { transform: translateY(0) scale(1); opacity: 0.3; }
-          50%  { opacity: 0.5; }
-          100% { transform: translateY(-110vh) scale(1.1); opacity: 0; }
+        @keyframes soapBubbleFloat {
+          0%   { transform: translateY(0) scale(1) rotate(0deg); opacity: 0; }
+          8%   { opacity: 0.75; }
+          50%  { transform: translateY(-45vh) scale(1.05) rotate(8deg); opacity: 0.65; }
+          85%  { opacity: 0.4; }
+          100% { transform: translateY(-115vh) scale(0.9) rotate(-5deg); opacity: 0; }
         }
       `}</style>
     </div>

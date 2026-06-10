@@ -59,7 +59,10 @@ export default async function AdminPage() {
               <circle cx="22" cy="28" r="10" stroke="white" strokeWidth="2.5" fill="none"/>
             </svg>
           </div>
-          <h1 className="font-black text-base">Laundry <span className="font-light">by Chabad</span> <span className="text-white/60 font-medium">— {t["admin.title"]}</span></h1>
+          <div>
+            <h1 className="font-black text-base">{t["admin.title"]}</h1>
+            <p className="text-xs text-white/60 font-light">Laundry by Chabad</p>
+          </div>
         </div>
         <Link href="/employee" className="text-sm text-white/80 hover:text-white font-medium transition-colors">← {t["nav.back_employee"]}</Link>
       </header>
@@ -83,6 +86,7 @@ export default async function AdminPage() {
           <AdminNavCard href="/admin/translations" title={t["admin.translations"]} desc={t["admin.translations_desc"]} />
           <AdminNavCard href="/admin/audit" title={t["admin.audit"]} desc={t["admin.audit_desc"]} />
           <AdminNavCard href="/admin/payments" title="תשלומים" desc="צפה בתשלומי Webhook, ערוך ועבד מחדש" />
+          <AdminNavCard href="/admin/reports" title={t["admin.reports"]} desc={t["admin.reports_desc"]} />
         </div>
       </main>
     </div>

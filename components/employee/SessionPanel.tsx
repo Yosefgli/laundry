@@ -80,7 +80,7 @@ export function SessionPanel({
     await fetch(`/api/orders/${order.id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "confirmed" }),
+      body: JSON.stringify({ status: "confirmed", terms_accepted: true }),
     });
     await fetch(`/api/sessions/${sessionId}`, {
       method: "PATCH",

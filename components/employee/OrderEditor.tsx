@@ -30,7 +30,6 @@ const ORDER_STATUSES: OrderStatus[] = [
   "ready",
   "delivered",
   "cancelled",
-  "void",
 ];
 
 interface OrderEditorProps {

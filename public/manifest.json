@@ -1,0 +1,20 @@
+{
+  "name": "Laundry POS — by Chabad",
+  "short_name": "Laundry POS",
+  "description": "Laundry Point of Sale Management System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fefe",
+  "theme_color": "#0ea5e9",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "categories": ["business", "utilities"]
+}
