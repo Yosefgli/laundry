@@ -50,24 +50,18 @@ export default async function AdminPage() {
     <div className="min-h-screen bg-[#f8fefe]">
       <header className="bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3 text-white">
-          <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-            <svg width="22" height="22" viewBox="0 0 52 52" fill="none">
-              <circle cx="7" cy="7" r="5" stroke="white" strokeWidth="1.8" fill="none"/>
-              <circle cx="3" cy="16" r="3.5" stroke="white" strokeWidth="1.5" fill="none"/>
-              <circle cx="15" cy="3" r="3" stroke="white" strokeWidth="1.5" fill="none"/>
-              <circle cx="4" cy="24" r="2" stroke="white" strokeWidth="1.2" fill="none"/>
-              <rect x="14" y="10" width="34" height="38" rx="5" stroke="white" strokeWidth="2.5" fill="none"/>
-              <rect x="14" y="10" width="34" height="10" rx="5" fill="white" fillOpacity="0.25"/>
-              <circle cx="40" cy="15" r="2" fill="white"/>
-              <circle cx="45" cy="15" r="2" fill="white"/>
-              <circle cx="31" cy="34" r="11" stroke="white" strokeWidth="2.5" fill="none"/>
-              <path d="M25 31 Q31 27 37 31" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round"/>
+          <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 44 44" fill="none">
+              <rect x="4" y="8" width="36" height="32" rx="4" stroke="white" strokeWidth="2.5" fill="none"/>
+              <rect x="4" y="8" width="36" height="9" rx="4" fill="white" fillOpacity="0.3"/>
+              <circle cx="32" cy="12.5" r="2" fill="white"/>
+              <circle cx="37" cy="12.5" r="2" fill="white"/>
+              <circle cx="22" cy="28" r="10" stroke="white" strokeWidth="2.5" fill="none"/>
             </svg>
           </div>
           <div>
-            <div className="text-xl font-black leading-none">Laundry</div>
-            <div className="text-xs text-white/55 font-light leading-tight">By Chabad</div>
-            <p className="text-xs text-white/70 mt-0.5">{t["admin.title"]}</p>
+            <h1 className="font-black text-base">{t["admin.title"]}</h1>
+            <p className="text-xs text-white/60 font-light">Laundry by Chabad</p>
           </div>
         </div>
         <Link href="/employee" className="text-sm text-white/80 hover:text-white font-medium transition-colors">← {t["nav.back_employee"]}</Link>

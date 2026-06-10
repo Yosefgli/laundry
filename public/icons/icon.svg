@@ -1,21 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <rect width="512" height="512" rx="96" fill="#17AEAD"/>
-  <!-- Soap bubbles upper-left -->
-  <circle cx="130" cy="88" r="42" stroke="white" stroke-width="14" fill="none"/>
-  <circle cx="68" cy="148" r="30" stroke="white" stroke-width="12" fill="none"/>
-  <circle cx="188" cy="50" r="24" stroke="white" stroke-width="10" fill="none"/>
-  <circle cx="60" cy="210" r="18" stroke="white" stroke-width="8" fill="none"/>
-  <circle cx="148" cy="148" r="12" stroke="white" stroke-width="7" fill="none"/>
-  <circle cx="218" cy="108" r="9" stroke="white" stroke-width="6" fill="none"/>
-  <!-- Washing machine body -->
-  <rect x="128" y="160" width="288" height="230" rx="32" stroke="white" stroke-width="20" fill="none"/>
-  <!-- Control panel top strip -->
-  <rect x="128" y="160" width="288" height="72" rx="32" fill="white" fill-opacity="0.25"/>
-  <!-- Control dots -->
-  <circle cx="362" cy="196" r="16" fill="white"/>
-  <circle cx="406" cy="196" r="16" fill="white"/>
-  <!-- Porthole ring -->
-  <circle cx="272" cy="306" r="86" stroke="white" stroke-width="20" fill="none"/>
-  <!-- Porthole inner arc (water movement) -->
-  <path d="M232 290 Q272 262 312 290" stroke="white" stroke-width="16" fill="none" stroke-linecap="round"/>
+  <rect width="512" height="512" rx="96" fill="#0ea5e9"/>
+  <rect x="96" y="150" width="320" height="250" rx="32" stroke="white" stroke-width="22" fill="none"/>
+  <rect x="96" y="150" width="320" height="80" rx="32" fill="white" fill-opacity="0.25"/>
+  <circle cx="390" cy="190" r="16" fill="white"/>
+  <circle cx="430" cy="190" r="16" fill="white"/>
+  <circle cx="256" cy="310" r="88" stroke="white" stroke-width="22" fill="none"/>
+  <circle cx="256" cy="310" r="28" fill="white" fill-opacity="0.3"/>
 </svg>

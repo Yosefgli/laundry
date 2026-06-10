@@ -172,25 +172,20 @@ function PendingCustomerHandoff({
   return (
     <div className="min-h-screen bg-[#f8fefe]" dir={dir}>
       <header className="bg-gradient-to-br from-brand-500 to-brand-700 text-white px-6 py-5 shadow-sm">
-        <div className="max-w-lg mx-auto flex items-center gap-4">
-          <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
-            <svg width="28" height="28" viewBox="0 0 52 52" fill="none">
-              <circle cx="7" cy="7" r="5" stroke="white" strokeWidth="1.8" fill="none"/>
-              <circle cx="3" cy="16" r="3.5" stroke="white" strokeWidth="1.5" fill="none"/>
-              <circle cx="15" cy="3" r="3" stroke="white" strokeWidth="1.5" fill="none"/>
-              <circle cx="4" cy="24" r="2" stroke="white" strokeWidth="1.2" fill="none"/>
-              <rect x="14" y="10" width="34" height="38" rx="5" stroke="white" strokeWidth="2.5" fill="none"/>
-              <rect x="14" y="10" width="34" height="10" rx="5" fill="white" fillOpacity="0.25"/>
-              <circle cx="40" cy="15" r="2" fill="white"/>
-              <circle cx="45" cy="15" r="2" fill="white"/>
-              <circle cx="31" cy="34" r="11" stroke="white" strokeWidth="2.5" fill="none"/>
-              <path d="M25 31 Q31 27 37 31" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round"/>
+        <div className="max-w-lg mx-auto flex items-center gap-3">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+            <svg width="22" height="22" viewBox="0 0 44 44" fill="none">
+              <rect x="4" y="8" width="36" height="32" rx="4" stroke="white" strokeWidth="2.5" fill="none"/>
+              <rect x="4" y="8" width="36" height="9" rx="4" fill="white" fillOpacity="0.3"/>
+              <circle cx="32" cy="12.5" r="2" fill="white"/>
+              <circle cx="37" cy="12.5" r="2" fill="white"/>
+              <circle cx="22" cy="28" r="10" stroke="white" strokeWidth="2.5" fill="none"/>
             </svg>
           </div>
           <div>
-            <div className="text-2xl font-black leading-none">Laundry</div>
-            <div className="text-xs text-white/55 font-light leading-tight">By Chabad</div>
-            <p className="text-white/70 text-xs mt-1">{t["customer.welcome"]}</p>
+            <h1 className="font-black text-sm leading-none">Laundry POS</h1>
+            <p className="text-white/50 font-light text-xs leading-none">by Chabad</p>
+            <p className="text-white/70 text-xs mt-0.5">{t["customer.welcome"]}</p>
           </div>
         </div>
       </header>
@@ -404,33 +399,27 @@ export function CustomerPriceDisplay({
 
   return (
     <div className="min-h-screen bg-[#f8fefe]" dir={dir}>
-      <header className="bg-gradient-to-br from-brand-500 to-brand-700 px-6 pt-10 pb-8 text-white">
-        <div className="mx-auto max-w-4xl">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-5">
-              <div className="w-20 h-20 bg-white/15 rounded-3xl flex items-center justify-center shrink-0">
-                <svg width="50" height="50" viewBox="0 0 52 52" fill="none">
-                  <circle cx="7" cy="7" r="5" stroke="white" strokeWidth="1.8" fill="none"/>
-                  <circle cx="3" cy="16" r="3.5" stroke="white" strokeWidth="1.5" fill="none"/>
-                  <circle cx="15" cy="3" r="3" stroke="white" strokeWidth="1.5" fill="none"/>
-                  <circle cx="4" cy="24" r="2" stroke="white" strokeWidth="1.2" fill="none"/>
-                  <rect x="14" y="10" width="34" height="38" rx="5" stroke="white" strokeWidth="2.5" fill="none"/>
-                  <rect x="14" y="10" width="34" height="10" rx="5" fill="white" fillOpacity="0.25"/>
-                  <circle cx="40" cy="15" r="2" fill="white"/>
-                  <circle cx="45" cy="15" r="2" fill="white"/>
-                  <circle cx="31" cy="34" r="11" stroke="white" strokeWidth="2.5" fill="none"/>
-                  <path d="M25 31 Q31 27 37 31" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round"/>
-                </svg>
-              </div>
-              <div>
-                <div className="text-6xl font-black leading-none tracking-tight">Laundry</div>
-                <div className="text-base text-white/55 font-light mt-0.5">By Chabad</div>
-                <h1 className="text-lg font-semibold text-white/90 mt-2">{t["customer.price_list_title"]}</h1>
-              </div>
+      <header className="bg-gradient-to-br from-brand-500 to-brand-700 px-6 py-8 text-white">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
+              <svg width="32" height="32" viewBox="0 0 44 44" fill="none">
+                <rect x="4" y="8" width="36" height="32" rx="4" stroke="white" strokeWidth="2.5" fill="none"/>
+                <rect x="4" y="8" width="36" height="9" rx="4" fill="white" fillOpacity="0.25"/>
+                <circle cx="32" cy="12.5" r="2" fill="white"/>
+                <circle cx="37" cy="12.5" r="2" fill="white"/>
+                <circle cx="22" cy="28" r="10" stroke="white" strokeWidth="2.5" fill="none"/>
+                <circle cx="7" cy="4" r="2" fill="white" fillOpacity="0.7"/>
+                <circle cx="3" cy="8" r="1.5" fill="white" fillOpacity="0.5"/>
+              </svg>
             </div>
-            <div className="rounded-2xl bg-white/15 px-4 py-2.5 text-sm font-semibold backdrop-blur-sm border border-white/20 shrink-0 mt-1">
-              {t["customer.price_list_ready"]}
+            <div>
+              <h1 className="text-3xl font-black">{t["customer.price_list_title"]}</h1>
+              <p className="text-xs font-light text-white/50 mt-0.5">Laundry by Chabad</p>
             </div>
+          </div>
+          <div className="rounded-2xl bg-white/15 px-4 py-2.5 text-sm font-semibold backdrop-blur-sm border border-white/20">
+            {t["customer.price_list_ready"]}
           </div>
         </div>
       </header>
@@ -449,44 +438,49 @@ export function CustomerPriceDisplay({
         </div>
 
         {activeServices.length === 0 ? (
-          <div className="rounded-2xl bg-white/60 p-10 text-center text-gray-400">
+          <div className="rounded-2xl border bg-white p-10 text-center text-gray-400 shadow-sm">
             {t["customer.no_prices"]}
           </div>
         ) : (
-          <section className="space-y-2">
+          <section className="grid gap-3 sm:grid-cols-2">
             {activeServices.map((service) => {
               const rule = activeRule(service);
               const flatFee = Number(rule?.flat_fee ?? 0);
               const minimumCharge = Number(rule?.minimum_charge ?? 0);
 
               return (
-                <div key={service.id} className="overflow-hidden rounded-2xl flex">
-                  <div className="w-1.5 bg-brand-400 shrink-0" />
-                  <div className="flex-1 bg-white px-6 py-5 flex items-center justify-between gap-6">
-                    <div>
-                      <h2 className="text-xl font-bold text-gray-900 leading-snug">
-                        {t[`service.${service.code}`] ?? service.code}
-                      </h2>
-                      <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
-                        {flatFee > 0 && (
-                          <span className="text-xs text-gray-400">{t["customer.flat_fee"]}: {formatCurrency(flatFee, locale)}</span>
-                        )}
-                        {minimumCharge > 0 && (
-                          <span className="text-xs text-gray-400">{t["customer.minimum_charge"]}: {formatCurrency(minimumCharge, locale)}</span>
-                        )}
-                      </div>
-                    </div>
-                    {rule ? (
-                      <div className="text-right shrink-0">
-                        <div className="text-4xl font-black text-brand-600 leading-none tabular-nums">
-                          {formatCurrency(Number(rule.price_per_kg), locale)}
-                        </div>
-                        <div className="text-xs text-gray-400 mt-1 whitespace-nowrap">{t["customer.price_per_kg"]}</div>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-400">{t["common.not_available"]}</p>
-                    )}
+                <div key={service.id} className="rounded-2xl border border-gray-100 bg-white px-5 py-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 rounded-full bg-brand-400 shrink-0" />
+                    <h2 className="text-base font-bold text-gray-800">
+                      {t[`service.${service.code}`] ?? service.code}
+                    </h2>
                   </div>
+
+                  {rule ? (
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex items-baseline justify-between gap-3 border-b border-gray-50 pb-2">
+                        <span className="text-gray-500">{t["customer.price_per_kg"]}</span>
+                        <span className="font-black text-xl text-brand-600 whitespace-nowrap">
+                          {formatCurrency(Number(rule.price_per_kg), locale)}
+                        </span>
+                      </div>
+                      {flatFee > 0 && (
+                        <div className="flex justify-between gap-3 text-gray-500">
+                          <span>{t["customer.flat_fee"]}</span>
+                          <span className="font-semibold text-gray-700">{formatCurrency(flatFee, locale)}</span>
+                        </div>
+                      )}
+                      {minimumCharge > 0 && (
+                        <div className="flex justify-between gap-3 text-gray-500">
+                          <span>{t["customer.minimum_charge"]}</span>
+                          <span className="font-semibold text-gray-700">{formatCurrency(minimumCharge, locale)}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400">{t["common.not_available"]}</p>
+                  )}
                 </div>
               );
             })}

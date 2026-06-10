@@ -5,17 +5,17 @@ import { getI18n } from "@/lib/i18n/server";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Laundry By Chabad",
-  description: "Laundry By Chabad — Point of Sale Management",
+  title: "Laundry POS",
+  description: "Laundry Point of Sale Management System",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Laundry By Chabad",
+    title: "Laundry POS",
   },
   icons: {
-    icon: "/icons/logo.png",
-    apple: "/icons/logo.png",
+    icon: "/icons/icon.svg",
+    apple: "/icons/icon.svg",
   },
 };
 

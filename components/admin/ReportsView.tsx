@@ -122,65 +122,14 @@ export function ReportsView({
     URL.revokeObjectURL(url);
   }
 
-  async function exportPDF() {
-    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
-      import("jspdf"),
-      import("jspdf-autotable"),
-    ]);
-
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("Laundry By Chabad", 14, 14);
-
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100);
-    doc.text(`${t["common.created"] ?? "Generated"}: ${new Date().toLocaleString()}`, 14, 21);
-    doc.text(
-      `${t["admin.report_total_orders"] ?? "Orders"}: ${orders.length}   ${t["admin.report_total_revenue"] ?? "Revenue"}: ${formatCurrency(totalRevenue, locale)}`,
-      14,
-      27,
-    );
-    doc.setTextColor(0);
-
-    autoTable(doc, {
-      startY: 33,
-      head: [[
-        t["admin.order_number"] ?? "#",
-        t["common.created"] ?? "Date",
-        t["common.customer"] ?? "Customer",
-        t["common.status"] ?? "Status",
-        t["admin.report_filter_service"] ?? "Service",
-        t["admin.report_filter_color"] ?? "Color",
-        `${t["employee.weight_kg"] ?? "Weight"} (kg)`,
-        t["common.total"] ?? "Total",
-        t["common.payment"] ?? "Payment",
-      ]],
-      body: orders.map((o) => [
-        `#${o.order_number}`,
-        new Date(o.created_at).toLocaleString(),
-        o.customer_name ?? "",
-        t[`status.${o.status}`] ?? o.status,
-        getOrderServices(o),
-        getOrderColors(o),
-        Number(o.total_weight_kg).toFixed(3),
-        Number(o.total_amount).toFixed(2),
-        t[`payment.${o.payment_status}`] ?? o.payment_status,
-      ]),
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [23, 174, 173], textColor: 255, fontStyle: "bold" },
-      alternateRowStyles: { fillColor: [248, 254, 254] },
-    });
-
-    doc.save(`report_${new Date().toISOString().slice(0, 10)}.pdf`);
+  function exportPDF() {
+    window.print();
   }
 
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4 print:hidden">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="space-y-1">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
@@ -345,6 +294,15 @@ export function ReportsView({
         </div>
       )}
 
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          .print\\:hidden { display: none !important; }
+          table, table * { visibility: visible; }
+          table { position: fixed; top: 0; left: 0; width: 100%; }
+        }
+      `}</style>
     </div>
   );
 }
